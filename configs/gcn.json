@@ -1,0 +1,12 @@
+{
+    "dataset": "cora",
+    "epochs": 3000,
+    "preepochs":0,
+    "gnn": "gcn",
+    "seed": 515,
+    "learning_rate": 0.01,
+    "weight_decay": 0.0005,
+    "patience": 100,
+    "loss_type": "False",
+    "aug_type": "none"
+  }

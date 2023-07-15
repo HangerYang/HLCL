@@ -1,0 +1,5 @@
+
+pretrain epochs = 200
+pre_learning_rate = 0.001
+hidden_dim = 128
+(E): DGI Mean Accuracy: 0.9392405063291139, with Std: 0.0

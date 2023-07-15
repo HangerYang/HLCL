@@ -1,0 +1,7 @@
+
+pretrain epochs = 200
+pre_learning_rate = 0.001
+hidden_dim = 16
+augmentation ratio = 0.0
+augmentation type = ER
+(E): FBGCN Mean Accuracy: 0.633408171856463, with Std: 0.04857062673010931

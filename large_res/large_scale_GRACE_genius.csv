@@ -1,0 +1,5 @@
+
+pretrain epochs = 200
+pre_learning_rate = 0.001
+hidden_dim = 8
+(E): GRACE Mean Accuracy: 0.7958651417734973, with Std: 0.029485492255195426
