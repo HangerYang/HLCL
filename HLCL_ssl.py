@@ -7,12 +7,13 @@ from GCL.eval import get_split
 from Evaluator import LREvaluator
 import numpy as np
 from utility.data import dataset_split
-from HLCL.utils import get_arguments, seed_everything, edge_create, two_hop
+from HLCL.utils import get_arguments, seed_everything, edge_create, two_hop, create_neg_mask
 from HLCL.models import Encoder, HLCLConv, DualBranchContrast
 from torch_geometric.utils import dense_to_sparse,remove_self_loops
 import torch.nn.functional as F
 
-def train(args, encoder_model, contrast_model, x, edge_index, device, lp_edge_index, hp_edge_index, low_edge_weight, high_edge_weight,optimizer, edges=False):
+
+def train(args, encoder_model, contrast_model, x, edge_index, device, lp_edge_index, hp_edge_index, low_edge_weight, high_edge_weight,optimizer, edges=False, neg_mask = None):
     encoder_model.train()
     optimizer.zero_grad()
     # hp_edge_index, high_edge_weight = remove_self_loops(hp_edge_index, high_edge_weight)
@@ -22,7 +23,7 @@ def train(args, encoder_model, contrast_model, x, edge_index, device, lp_edge_in
         (z, z1, z2) = encoder_model(args, x, lp_edge_index, hp_edge_index ,low_edge_weight, high_edge_weight)
     h1, h2 = [encoder_model.project(x) for x in [z1, z2]]
     # h1, h2 = z1, z2
-    loss = contrast_model(h1, h2)
+    loss = contrast_model(h1, h2, neg_mask=neg_mask)
     loss.backward()
     optimizer.step()
     if edges:
@@ -74,7 +75,7 @@ for run in range(args.runs):
         high_edge_index, high_edge_weight = dense_to_sparse(high_graph)
     else:
         low_edge_index, high_edge_index, low_edge_weight, high_edge_weight = edge_create(args, data.x, data.edge_index, high_k, low_k, device)
-    
+    neg_mask = create_neg_mask(args, device, low_edge_index, high_edge_index, data.x)
     
     encoder_model = Encoder(encoder=gconv, augmentor=(aug1, aug2), hidden_dim=hidden_dim, proj_dim=hidden_dim).to(device)
     contrast_model = DualBranchContrast(loss=L.InfoNCE(tau=0.2), mode='L2L', intraview_negs=args.intraview_negs).to(device)
@@ -83,10 +84,10 @@ for run in range(args.runs):
     with tqdm(total=preepochs, desc='(T)') as pbar:
         for epoch in range(preepochs):
             if epoch % args.per_epoch == 0 and epoch >= args.per_epoch:
-                loss, low_edge_index, high_edge_index, low_edge_weight, high_edge_weight= train(args = args, encoder_model = encoder_model, contrast_model = contrast_model, x = data.x, edge_index = data.edge_index, device= device, lp_edge_index = low_edge_index, hp_edge_index = high_edge_index, low_edge_weight = low_edge_weight, high_edge_weight = high_edge_weight, optimizer = optimizer,edges = True)
-        
+                loss, low_edge_index, high_edge_index, low_edge_weight, high_edge_weight= train(args = args, encoder_model = encoder_model, contrast_model = contrast_model, x = data.x, edge_index = data.edge_index, device= device, lp_edge_index = low_edge_index, hp_edge_index = high_edge_index, low_edge_weight = low_edge_weight, high_edge_weight = high_edge_weight, optimizer = optimizer,edges = True, neg_mask=neg_mask)
+                neg_mask = create_neg_mask(args, device, low_edge_index, high_edge_index, data.x)
             else:
-                loss = train(args = args, encoder_model = encoder_model, contrast_model = contrast_model, x = data.x, edge_index = data.edge_index, device= device, lp_edge_index = low_edge_index, hp_edge_index = high_edge_index, low_edge_weight = low_edge_weight, high_edge_weight = high_edge_weight, optimizer = optimizer,edges = False)
+                loss = train(args = args, encoder_model = encoder_model, contrast_model = contrast_model, x = data.x, edge_index = data.edge_index, device= device, lp_edge_index = low_edge_index, hp_edge_index = high_edge_index, low_edge_weight = low_edge_weight, high_edge_weight = high_edge_weight, optimizer = optimizer,edges = False, neg_mask=neg_mask)
             pbar.set_postfix({'loss': loss})
             pbar.update()
             if epoch % args.pre_eval == 0 and epoch >= args.pre_eval:

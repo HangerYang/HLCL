@@ -44,7 +44,7 @@ def train_rewire(args, encoder_model, contrast_model, x, edge_index, device, lp_
     cb_hp_edge_index = torch.cat((known_high_edge_index, hp_edge_index), dim=1)
     cb_lp_edge_index = torch.cat((known_low_edge_index, lp_edge_index), dim=1)
     if edges:
-        (z, z1, z2), low_edge_index, high_edge_index, lp_edge_weight, hp_edge_weight = encoder_model(args, x, cb_lp_edge_index, cb_hp_edge_index ,cb_lp_edge_weight, cb_hp_edge_weight, edge_index, device, edges=True)
+        (z, z1, z2), low_edge_index, high_edge_index, lp_edge_weight, hp_edge_weight = encoder_model(args, x, cb_lp_edge_index, cb_hp_edge_index ,cb_lp_edge_weight, cb_hp_edge_weight, edge_index, edges, device)
     else:
         (z, z1, z2) = encoder_model(args, x, cb_lp_edge_index, cb_hp_edge_index ,cb_lp_edge_weight, cb_hp_edge_weight)
     h1, h2 = [encoder_model.project(x) for x in [z1, z2]]
@@ -98,6 +98,7 @@ for run in range(args.runs):
     high_pass_graph = []
     split = get_split_given(data, run, device)
     unknown_edges, known_edges = split_edges(data.edge_index, split)
+    unknown_edges = unknown_edges.t()
     for i in known_edges:
         if (data.y[i[0]] == data.y[i[1]]) :
             low_pass_graph.append(i)
@@ -109,13 +110,13 @@ for run in range(args.runs):
     known_high_edge_weight = torch.ones(known_high_edge_index.shape[1]).to(device)
     known_info = known_low_edge_index, known_high_edge_index, known_low_edge_weight, known_high_edge_weight 
     if args.edge == "soft":
-        graph, adj_idx = edge_create(args, data.x, unknown_edges.t())
+        graph, adj_idx = edge_create(args, data.x, unknown_edges)
         low_graph = F.normalize(graph)
         high_graph = F.normalize(adj_idx - low_graph)
         unknown_low_edge_index, unknown_low_edge_weight = dense_to_sparse(low_graph)
         unknown_high_edge_index, unknown_high_edge_weight = dense_to_sparse(high_graph)
     elif args.edge == "hard_ratio" or args.edge == "hard_num":
-        unknown_low_edge_index, unknown_high_edge_index, unknown_low_edge_weight, unknown_high_edge_weight = edge_create(args, data.x, unknown_edges.t(), args.high_k, args.low_k, device)
+        unknown_low_edge_index, unknown_high_edge_index, unknown_low_edge_weight, unknown_high_edge_weight = edge_create(args, data.x, unknown_edges, args.high_k, args.low_k, device)
     neg_sample=[]  
     for i in range(torch.unique(data.y).shape[0]):
         nongroup = torch.where(torch.logical_and(data.y!=i, torch.tensor([k in split["train"] for k in torch.tensor(range(data.num_nodes))]).to(device)))[0]
@@ -150,7 +151,10 @@ for run in range(args.runs):
             total_result.append((run, epoch, test_result["accuracy"]))
         elif args.mode == "rewire":
             for epoch in range(preepochs):
-                loss = train_rewire(args, encoder_model, contrast_model, data.x, unknown_edges, device, unknown_low_edge_index, unknown_high_edge_index, unknown_low_edge_weight, unknown_high_edge_weight, optimizer, False, known_info)
+                if epoch % args.per_epoch == 0 and epoch >= args.per_epoch:
+                    loss, unknown_low_edge_index, unknown_high_edge_index, unknown_low_edge_weight, unknown_high_edge_weight = train_rewire(args, encoder_model, contrast_model, data.x, unknown_edges, device, unknown_low_edge_index, unknown_high_edge_index, unknown_low_edge_weight, unknown_high_edge_weight, optimizer, True, known_info)
+                else:
+                    loss = train_rewire(args, encoder_model, contrast_model, data.x, unknown_edges, device, unknown_low_edge_index, unknown_high_edge_index, unknown_low_edge_weight, unknown_high_edge_weight, optimizer, False, known_info)
                 pbar.set_postfix({'loss': loss})
                 pbar.update()
                 if epoch % args.pre_eval == 0 and epoch >= args.pre_eval:

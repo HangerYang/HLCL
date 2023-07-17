@@ -8,13 +8,11 @@ from torch_geometric.utils import (
 )
 import torch.nn.functional as F
 import argparse
-def create_neg_mask(args, device, low_graph=None, high_graph=None, soft_graph=None, x=None, edge_index=None):
-    if args.edges == "soft":
-        pass
+def create_neg_mask(args, device, low_graph=None, high_graph=None, x=None):
     if args.neg == "inverse_low":
         a = to_dense_adj(low_graph)
         a[a==0] = -1
-        a[a==1] = 0
+        a[a>0] = 0
         a = a * -1
         a = a.to(device)
     elif args.neg == "high":
@@ -22,7 +20,13 @@ def create_neg_mask(args, device, low_graph=None, high_graph=None, soft_graph=No
         a = a.to(device)
     elif args.neg == "simple":
         a = None
+    elif args.neg == "global":
+        graph = x @ x.t()
+        graph[graph==0] = 10
+        indices = graph.topk(k=300, largest=False)[1]
+        a = torch.zeros(graph.shape[0], graph.shape[0]).to(device).scatter_(1, indices, 1).to(device)
     return a
+
 def seed_everything(seed=1234):                                                                                                          
     torch.manual_seed(seed)                                                      
     torch.cuda.manual_seed_all(seed)                                             
@@ -186,27 +190,27 @@ def res_combine(args, device, edge_index, low_k=None, high_k=None, low_x=None, h
                 high_edges_0,high_edges_1, high_edge_weight_0, high_edge_weight_1 = edge_create(args, high_x, edge_index, high_k, low_k, device)
                 low_pass_edges = union(low_edges_0, high_edges_0)
                 high_pass_edges = union(low_edges_1, high_edges_1)
-                low_edge_weight = low_edge_weight_0
-                high_edge_weight = high_edge_weight_0
+                low_edge_weight = torch.ones(low_pass_edges.shape[1])
+                high_edge_weight = torch.ones(high_pass_edges.shape[1])
             elif args.md == "intersect":
                 low_edges_0,low_edges_1, low_edge_weight_0, low_edge_weight_1 = edge_create(args, low_x, edge_index, high_k, low_k, device)
                 high_edges_0,high_edges_1, high_edge_weight_0, high_edge_weight_1 = edge_create(args, high_x, edge_index, high_k, low_k, device)
                 low_pass_edges = intersect(low_edges_0, high_edges_0)
                 high_pass_edges = intersect(low_edges_1, high_edges_1)
-                low_edge_weight = low_edge_weight_0
-                high_edge_weight = high_edge_weight_0
+                low_edge_weight = torch.ones(low_pass_edges.shape[1])
+                high_edge_weight = torch.ones(high_pass_edges.shape[1])
             elif args.md == "low":
                 low_edges_0,low_edges_1, low_edge_weight_0, low_edge_weight_1 = edge_create(args, low_x, edge_index, high_k, low_k, device)
                 low_pass_edges = low_edges_0
                 high_pass_edges = low_edges_1
-                low_edge_weight = low_edge_weight_0
-                high_edge_weight = low_edge_weight_1
+                low_edge_weight = torch.ones(low_pass_edges.shape[1])
+                high_edge_weight = torch.ones(high_pass_edges.shape[1])
             elif args.md == "high":
                 high_edges_0,high_edges_1, high_edge_weight_0, high_edge_weight_1 = edge_create(args, high_x, edge_index, high_k, low_k, device)
                 low_pass_edges = high_edges_0
                 high_pass_edges = high_edges_1
-                low_edge_weight = high_edge_weight_0
-                high_edge_weight = high_edge_weight_1
+                low_edge_weight = torch.ones(low_pass_edges.shape[1])
+                high_edge_weight = torch.ones(high_pass_edges.shape[1])
         else:
             if args.md == "union":
                 low_graph, adj_idx = edge_create(args, low_x, edge_index, high_k, low_k, device)
@@ -279,5 +283,6 @@ def get_arguments():
     parser.add_argument('--combine_x', action='store_true')
     parser.add_argument('--md', type=str, default = "union")
     parser.add_argument('--mode', type=str, default = "known")
+    parser.add_argument('--neg', type=str, default = "simple")
     args, unknown = parser.parse_known_args()
     return args
