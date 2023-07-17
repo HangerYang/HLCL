@@ -44,21 +44,28 @@ class Mix_Pass(MessagePassing):
         
 
 class HLCLConv(torch.nn.Module):
-    def __init__(self, input_dim, hidden_dim, activation, num_layers):
+    def __init__(self, input_dim, hidden_dim, activation, num_layers, dropout=0.2):
         super(HLCLConv, self).__init__()
+        self.dropout = dropout
         self.activation = activation()
+        self.num_layers = num_layers
         self.layers = torch.nn.ModuleList()
         self.layers.append(Mix_Pass(input_dim, hidden_dim))
-        for _ in range(num_layers - 1):
+        for _ in range(self.num_layers - 1):
             self.layers.append(Mix_Pass(hidden_dim, hidden_dim))
 
     def forward(self, x, edge_index, edge_weight=None, high_pass=False):
         z = x
+        z = F.dropout(z, p=self.dropout, training=self.training)
         for i, conv in enumerate(self.layers):
             z = conv(z, edge_index, edge_weight,high_pass)
             z = self.activation(z)
+            if i != self.num_layers - 1:
+                z = F.dropout(z, p=self.dropout, training=self.training)
         return z
-    
+    def reset_parameters(self):
+        for hlcl in self.layers:
+            hlcl.reset_parameters()
 class Encoder(torch.nn.Module):
     def __init__(self, encoder, augmentor, hidden_dim, proj_dim):
         super(Encoder, self).__init__()

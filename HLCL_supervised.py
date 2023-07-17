@@ -15,7 +15,7 @@ from GCL.losses import Loss
 from abc import ABC, abstractmethod
 from utility.data import dataset_split
 import argparse
-from torch_geometric.utils import (
+from torch_geometric.utils import ( 
     remove_self_loops,
     to_edge_index,
     to_torch_csr_tensor,
@@ -157,7 +157,7 @@ pre_learning_rate = args.pre_learning_rate
 preepochs=args.preepochs
 neg_masks = []
 epoch = 0
-# data.edge_index = add_self_loops(data.edge_index)[0]
+data.edge_index = add_self_loops(data.edge_index)[0]
 for run in range(args.runs):
     # split = get_split(data.x.size()[0], train_ratio=0.48, test_ratio=0.2)
     # split["train"] = split["train"].to(device)
@@ -172,8 +172,8 @@ for run in range(args.runs):
             high_pass_graph.append(i)
     known_low_edge_index = torch.stack(low_pass_graph).T
     known_high_edge_index = torch.stack(high_pass_graph).T
-    # known_low_edge_weight = torch.ones(known_low_edge_index.shape[1]).to(device)
-    # known_high_edge_weight = torch.ones(known_high_edge_index.shape[1]).to(device)
+    known_low_edge_weight = torch.ones(known_low_edge_index.shape[1]).to(device)
+    known_high_edge_weight = torch.ones(known_high_edge_index.shape[1]).to(device)
     # known_info = known_low_edge_index, known_high_edge_index, known_low_edge_weight, known_high_edge_weight 
     # if args.edge == "soft":
     #     graph, adj_idx = edge_create(args, data.x, unknown_edges)
@@ -208,14 +208,14 @@ for run in range(args.runs):
     with tqdm(total=preepochs, desc='(T)') as pbar:
         # if args.mode == "known":
         for epoch in range(preepochs):
-            loss = train(args, encoder_model, contrast_model, data.x, known_low_edge_index, known_high_edge_index, None, None, optimizer, neg_sample)
+            loss = train(args, encoder_model, contrast_model, data.x, known_low_edge_index, known_high_edge_index, known_low_edge_weight, known_high_edge_weight, optimizer, neg_sample)
             pbar.set_postfix({'loss': loss})
             pbar.update()
             if epoch % args.pre_eval == 0 and epoch >= args.pre_eval:
-                test_result = test(args, encoder_model, data.x, known_low_edge_index, known_high_edge_index, None, None, data.y, split)
+                test_result = test(args, encoder_model, data.x, known_low_edge_index, known_high_edge_index, known_low_edge_weight, known_high_edge_weight, data.y, split)
                 total_result.append((run, epoch, test_result["accuracy"]))
 
-        test_result = test(args, encoder_model, data.x, known_low_edge_index, known_high_edge_index, None, None, data.y, split)
+        test_result = test(args, encoder_model, data.x, known_low_edge_index, known_high_edge_index, known_low_edge_weight, known_high_edge_weight, data.y, split)
         total_result.append((run, epoch, test_result["accuracy"]))
         # elif args.mode == "rewire":
         #     for epoch in range(preepochs):

@@ -35,7 +35,10 @@ def soft_union(a,b,adj):
     low_edge_index, low_edge_weight = dense_to_sparse(low)
     high_edge_index, high_edge_weight = dense_to_sparse(high)
     return (low_edge_index, high_edge_index), (low_edge_weight, high_edge_weight)
-
+def th_delete(tensor, indices):
+    mask = torch.ones(tensor.numel(), dtype=torch.bool)
+    mask[indices] = False
+    return tensor[mask], mask.nonzero().t()[0]
 def add_edge(edge_index: torch.Tensor, ratio: float) -> torch.Tensor:
     num_edges = edge_index.size()[1]
     num_nodes = edge_index.max().item() + 1
@@ -71,32 +74,77 @@ def edge_create(args, x, edge_index, high_k=0, low_k=0, device=None):
         elif args.edge == "hard_ratio":
             graph = x @ x.t()
             adj_idx = to_dense_adj(edge_index)[0]
-            num_edges = [i.sum() for i in adj_idx]
             graph = graph*adj_idx
-            indices = []
-            for i in range(len(num_edges)):
-                num = num_edges[i].item()
-                ratio = int(num * low_k)
-                indices.append(graph[i].topk(k=ratio)[1])
-            indices = [indices[i] if indices[i].shape[0] > 0 else torch.tensor([i]) for i in range(len(indices))]
-            max_length = max([len(l) for l in indices])
-            indices = [torch.cat((l, l[-1].repeat(max_length - len(l)))).to(device) for l in indices]
-            indices = torch.stack(indices)
-            low_edge_index = torch.zeros(graph.shape[0], graph.shape[0]).to(device).scatter_(1, indices, 1)
-            low_edge_index, low_edge_weight = dense_to_sparse(low_edge_index)
+            edge_idx, edge_weight = dense_to_sparse(graph)
+            node_lst = {}
+            weight_lst = {}
+            k = len(edge_idx.t())
+            for i in range(k):
+                if i > 0 and edge_idx[0][i] == edge_idx[0][i-1]:
+                    node_lst[edge_idx[0][i].item()].append(edge_idx[1][i])
+                    weight_lst[edge_idx[0][i].item()].append(edge_weight[i])
+                else:
+                    node_lst[edge_idx[0][i].item()] = []
+                    node_lst[edge_idx[0][i].item()].append(edge_idx[1][i])
+                    weight_lst[edge_idx[0][i].item()] = []
+                    weight_lst[edge_idx[0][i].item()].append(edge_weight[i])
+                    high_k = 0.2
+            low_k = 0.3
+            low_graph = []
+            low_weight = []
+            high_graph = []
+            high_weight = []
+            for node, wgt in weight_lst.items():
+                t_len = len(wgt)
+                hk = np.ceil(t_len * high_k).astype(int)
+                lk = np.ceil(t_len * low_k).astype(int)
+                wgt = torch.tensor(wgt)
+                low_edge_wgt, low_edge_idx = torch.topk(wgt, lk)
+                remained_wgts, remained_idx = th_delete(wgt, low_edge_idx)
+                if len(remained_wgts) > hk:
+                    high_edge_wgt, high_edge_idx = torch.topk(remained_wgts, hk,largest=False)
+                    high_edge_idx = remained_idx[high_edge_idx]
+                else:
+                    high_edge_wgt, high_edge_idx = remained_wgts, remained_idx
+                for idx, neigh_node in enumerate(high_edge_idx):
+                    edge_pair = torch.tensor([node, node_lst[node][neigh_node]])
+                    high_graph.append(edge_pair)
+                    high_weight.append(high_edge_wgt[idx])
+                for idx, neigh_node in enumerate(low_edge_idx):
+                    edge_pair = torch.tensor([node, node_lst[node][neigh_node]])
+                    low_graph.append(edge_pair)
+                    low_weight.append(low_edge_wgt[idx])
+            high_edge_index = torch.stack(high_graph).t()
+            low_edge_index = torch.stack(low_graph).t()
+    
+            # graph = x @ x.t()
+            # adj_idx = to_dense_adj(edge_index)[0]
+            # num_edges = [i.sum() for i in adj_idx]
+            # graph = graph*adj_idx
+            # indices = []
+            # for i in range(len(num_edges)):
+            #     num = num_edges[i].item()
+            #     ratio = int(num * low_k)
+            #     indices.append(graph[i].topk(k=ratio)[1])
+            # indices = [indices[i] if indices[i].shape[0] > 0 else torch.tensor([i]) for i in range(len(indices))]
+            # max_length = max([len(l) for l in indices])
+            # indices = [torch.cat((l, l[-1].repeat(max_length - len(l)))).to(device) for l in indices]
+            # indices = torch.stack(indices)
+            # low_edge_index = torch.zeros(graph.shape[0], graph.shape[0]).to(device).scatter_(1, indices, 1)
+            # low_edge_index, low_edge_weight = dense_to_sparse(low_edge_index)
 
-            graph[graph==0] = 10
-            indices = []
-            for i in range(len(num_edges)):
-                num = num_edges[i].item()
-                ratio = int(num * high_k)
-                indices.append(graph[i].topk(k=ratio, largest=False)[1])
-            indices = [indices[i] if indices[i].shape[0] > 0 else torch.tensor([i]) for i in range(len(indices))]
-            max_length = max([len(l) for l in indices])
-            indices = [torch.cat((l, l[-1].repeat(max_length - len(l)))).to(device) for l in indices]
-            indices = torch.stack(indices)
-            high_edge_index = torch.zeros(graph.shape[0], graph.shape[0]).to(device).scatter_(1, indices, 1)
-            high_edge_index, high_edge_weight = dense_to_sparse(high_edge_index)
+            # graph[graph==0] = 10
+            # indices = []
+            # for i in range(len(num_edges)):
+            #     num = num_edges[i].item()
+            #     ratio = int(num * high_k)
+            #     indices.append(graph[i].topk(k=ratio, largest=False)[1])
+            # indices = [indices[i] if indices[i].shape[0] > 0 else torch.tensor([i]) for i in range(len(indices))]
+            # max_length = max([len(l) for l in indices])
+            # indices = [torch.cat((l, l[-1].repeat(max_length - len(l)))).to(device) for l in indices]
+            # indices = torch.stack(indices)
+            # high_edge_index = torch.zeros(graph.shape[0], graph.shape[0]).to(device).scatter_(1, indices, 1)
+            # high_edge_index, high_edge_weight = dense_to_sparse(high_edge_index)
         elif args.edge == "soft":
             graph = x @ x.t()
             adj_idx = to_dense_adj(edge_index)[0]
@@ -184,9 +232,9 @@ def split_edges(edge_index, split):
     for i in edge_index.T:
         if i[0] not in split["train"] or i[1] not in split["train"]:
             unknown_edges.append(i)
-        # elif i[0] == i[1]:
-        #     unknown_edges.append(i)
-        #     known_edges.append(i)
+        elif i[0] == i[1]:
+            unknown_edges.append(i)
+            known_edges.append(i)
         else:
             known_edges.append(i)
     return torch.stack(unknown_edges), torch.stack(known_edges)
