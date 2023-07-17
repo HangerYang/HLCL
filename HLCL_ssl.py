@@ -8,8 +8,7 @@ from Evaluator import LREvaluator
 import numpy as np
 from utility.data import dataset_split
 from HLCL.utils import get_arguments, seed_everything, edge_create, two_hop
-from HLCL.models import Encoder, HLCLConv
-from GCL.models import DualBranchContrast
+from HLCL.models import Encoder, HLCLConv, DualBranchContrast
 from torch_geometric.utils import dense_to_sparse,remove_self_loops
 import torch.nn.functional as F
 
@@ -18,9 +17,9 @@ def train(args, encoder_model, contrast_model, x, edge_index, device, lp_edge_in
     optimizer.zero_grad()
     # hp_edge_index, high_edge_weight = remove_self_loops(hp_edge_index, high_edge_weight)
     if edges:
-        (z, z1, z2), low_edge_index, high_edge_index, low_edge_weight, high_edge_weight = encoder_model(args, x, edge_index, device, lp_edge_index, hp_edge_index ,low_edge_weight, high_edge_weight, edges=True)
+        (z, z1, z2), low_edge_index, high_edge_index, low_edge_weight, high_edge_weight = encoder_model(args, x, lp_edge_index, hp_edge_index ,low_edge_weight, high_edge_weight, origin_edge_index = edge_index, edges=True, device = device)
     else:
-        (z, z1, z2) = encoder_model(args, x, edge_index, device, lp_edge_index, hp_edge_index ,low_edge_weight, high_edge_weight, edges= False)
+        (z, z1, z2) = encoder_model(args, x, lp_edge_index, hp_edge_index ,low_edge_weight, high_edge_weight)
     h1, h2 = [encoder_model.project(x) for x in [z1, z2]]
     # h1, h2 = z1, z2
     loss = contrast_model(h1, h2)
@@ -38,7 +37,7 @@ def train(args, encoder_model, contrast_model, x, edge_index, device, lp_edge_in
 def test(args, encoder_model, x, edge_index, device,lp_edge_index, hp_edge_index, low_edge_weight, high_edge_weight, y, split):
     encoder_model.eval()
     # hp_edge_index, high_edge_weight = remove_self_loops(hp_edge_index, high_edge_weight)
-    z, _, _= encoder_model(args, x, edge_index, device,lp_edge_index, hp_edge_index, low_edge_weight, high_edge_weight, edges= False)
+    z, _, _= encoder_model(args, x, lp_edge_index, hp_edge_index ,low_edge_weight, high_edge_weight)
     # split = get_split(num_samples=z.size()[0], train_ratio=0.1, test_ratio=0.8)
     result = LREvaluator()(z, y, split)
     return result
@@ -75,6 +74,8 @@ for run in range(args.runs):
         high_edge_index, high_edge_weight = dense_to_sparse(high_graph)
     else:
         low_edge_index, high_edge_index, low_edge_weight, high_edge_weight = edge_create(args, data.x, data.edge_index, high_k, low_k, device)
+    
+    
     encoder_model = Encoder(encoder=gconv, augmentor=(aug1, aug2), hidden_dim=hidden_dim, proj_dim=hidden_dim).to(device)
     contrast_model = DualBranchContrast(loss=L.InfoNCE(tau=0.2), mode='L2L', intraview_negs=args.intraview_negs).to(device)
     optimizer = Adam(encoder_model.parameters(), lr=pre_learning_rate)

@@ -8,7 +8,21 @@ from torch_geometric.utils import (
 )
 import torch.nn.functional as F
 import argparse
-
+def create_neg_mask(args, device, low_graph=None, high_graph=None, soft_graph=None, x=None, edge_index=None):
+    if args.edges == "soft":
+        pass
+    if args.neg == "inverse_low":
+        a = to_dense_adj(low_graph)
+        a[a==0] = -1
+        a[a==1] = 0
+        a = a * -1
+        a = a.to(device)
+    elif args.neg == "high":
+        a = to_dense_adj(high_graph)
+        a = a.to(device)
+    elif args.neg == "simple":
+        a = None
+    return a
 def seed_everything(seed=1234):                                                                                                          
     torch.manual_seed(seed)                                                      
     torch.cuda.manual_seed_all(seed)                                             
@@ -88,8 +102,6 @@ def edge_create(args, x, edge_index, high_k=0, low_k=0, device=None):
                     node_lst[edge_idx[0][i].item()].append(edge_idx[1][i])
                     weight_lst[edge_idx[0][i].item()] = []
                     weight_lst[edge_idx[0][i].item()].append(edge_weight[i])
-                    high_k = 0.2
-            low_k = 0.3
             low_graph = []
             low_weight = []
             high_graph = []
@@ -114,8 +126,10 @@ def edge_create(args, x, edge_index, high_k=0, low_k=0, device=None):
                     edge_pair = torch.tensor([node, node_lst[node][neigh_node]])
                     low_graph.append(edge_pair)
                     low_weight.append(low_edge_wgt[idx])
-            high_edge_index = torch.stack(high_graph).t()
-            low_edge_index = torch.stack(low_graph).t()
+            high_edge_index = torch.stack(high_graph).t().to(device)
+            low_edge_index = torch.stack(low_graph).t().to(device)
+            low_edge_weight = torch.ones(low_edge_index.shape[1]).to(device)
+            high_edge_weight = torch.ones(high_edge_index.shape[1]).to(device)
     
             # graph = x @ x.t()
             # adj_idx = to_dense_adj(edge_index)[0]

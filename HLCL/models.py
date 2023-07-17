@@ -6,6 +6,8 @@ from torch_geometric.nn.conv.gcn_conv import gcn_norm
 from HLCL.utils import res_combine, representation_combine
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
+from GCL.losses import Loss
+from abc import ABC, abstractmethod
 class Mix_Pass(MessagePassing):
     def __init__(self, in_channels, out_channels):
         super().__init__(aggr='add')  # "Add" aggregation (Step 5).
@@ -132,3 +134,67 @@ class GCN(torch.nn.Module):
 
         # last layer
         return F.log_softmax(self.activation(self.gcns[self.num_layers - 1](x, edge_index)), dim = 1)
+class Sampler(ABC):
+    def __init__(self, intraview_negs="none"):
+        self.intraview_negs = intraview_negs
+
+    def __call__(self, anchor, sample, *args, **kwargs):
+        ret = self.sample(anchor, sample, *args, **kwargs)
+        # if self.intraview_negs:
+        ret = self.add_intraview_negs(*ret, self.intraview_negs)
+        return ret
+    
+    @abstractmethod
+    def sample(self, anchor, sample, *args, **kwargs):
+        pass
+
+    @staticmethod
+    def add_intraview_negs(anchor, sample, pos_mask, neg_mask, intraview_negs):
+        if intraview_negs == "none":
+            return anchor, sample, pos_mask, neg_mask
+        num_nodes = anchor.size(0)
+        device = anchor.device
+        intraview_pos_mask = torch.zeros_like(pos_mask, device=device)
+        if intraview_negs == "simple":
+            intraview_neg_mask = torch.ones_like(pos_mask, device=device) - torch.eye(num_nodes, device=device)
+        elif intraview_negs == "origin":
+            intraview_neg_mask = neg_mask
+        new_sample = torch.cat([sample, anchor], dim=0)                     # (M+N) * K
+        new_pos_mask = torch.cat([pos_mask, intraview_pos_mask], dim=1)     # M * (M+N)
+        new_neg_mask = torch.cat([neg_mask, intraview_neg_mask], dim=1)     # M * (M+N)
+        return anchor, new_sample, new_pos_mask, new_neg_mask
+    
+class SameScaleSampler(Sampler):
+    def __init__(self, *args, **kwargs):
+        super(SameScaleSampler, self).__init__(*args, **kwargs)
+
+    def sample(self, anchor, sample, neg_mask = None, *args, **kwargs):
+        assert anchor.size(0) == sample.size(0)
+        num_nodes = anchor.size(0)
+        device = anchor.device
+        pos_mask = torch.eye(num_nodes, dtype=torch.float32, device=device)
+        if neg_mask is None:
+            neg_mask = 1. - pos_mask
+        return anchor, sample, pos_mask, neg_mask
+        # return anchor, sample, pos_mask
+    
+def get_sampler(mode: str, intraview_negs: bool) -> Sampler:
+    return SameScaleSampler(intraview_negs=intraview_negs)
+    
+class DualBranchContrast(torch.nn.Module):
+    def __init__(self, loss: Loss, mode: str, intraview_negs: bool = False, **kwargs):
+        super(DualBranchContrast, self).__init__()
+        self.loss = loss
+        self.mode = mode
+        self.sampler = get_sampler(mode, intraview_negs=intraview_negs)
+        self.kwargs = kwargs
+
+    def forward(self, h1=None, h2=None, g1=None, g2=None, batch=None, h3=None, h4=None,
+                extra_pos_mask=None, extra_neg_mask=None, neg_mask=None):
+        if self.mode == 'L2L':
+            anchor1, sample1, pos_mask1, neg_mask1= self.sampler(anchor=h1, sample=h2, neg_mask = neg_mask)
+            anchor2, sample2, pos_mask2, neg_mask2= self.sampler(anchor=h2, sample=h1, neg_mask = neg_mask)
+        l1 = self.loss(anchor=anchor1, sample=sample1, pos_mask=pos_mask1, neg_mask=neg_mask1, **self.kwargs)
+        l2 = self.loss(anchor=anchor2, sample=sample2, pos_mask=pos_mask2, neg_mask=neg_mask2, **self.kwargs)
+
+        return (l1 + l2) * 0.5
