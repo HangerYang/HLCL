@@ -14,17 +14,38 @@ def create_neg_mask(args, device, low_graph=None, high_graph=None, x=None):
         a[a==0] = -1
         a[a>0] = 0
         a = a * -1
-        a = a.to(device)
+        a = a[0].cpu()
     elif args.neg == "high":
         a = to_dense_adj(high_graph)
-        a = a.to(device)
+        a = a[0].cpu()
     elif args.neg == "simple":
         a = None
     elif args.neg == "global":
         graph = x @ x.t()
         graph[graph==0] = 10
         indices = graph.topk(k=300, largest=False)[1]
-        a = torch.zeros(graph.shape[0], graph.shape[0]).to(device).scatter_(1, indices, 1).to(device)
+        a = torch.zeros(graph.shape[0], graph.shape[0]).to(device).scatter_(1, indices, 1)
+        a = a.cpu()
+    return a
+
+def create_neg_mask_cuda(args, device, low_graph=None, high_graph=None, x=None):
+    if args.neg == "inverse_low":
+        a = to_dense_adj(low_graph)
+        a[a==0] = -1
+        a[a>0] = 0
+        a = a * -1
+        a = a[0].to(device)
+    elif args.neg == "high":
+        a = to_dense_adj(high_graph)
+        a = a[0].to(device)
+    elif args.neg == "simple":
+        a = None
+    elif args.neg == "global":
+        graph = x @ x.t()
+        graph[graph==0] = 10
+        indices = graph.topk(k=300, largest=False)[1]
+        a = torch.zeros(graph.shape[0], graph.shape[0]).to(device).scatter_(1, indices, 1)
+        a = a.to(device)
     return a
 
 def seed_everything(seed=1234):                                                                                                          
@@ -269,10 +290,10 @@ def get_arguments():
     parser.add_argument('--seed', type=int, default=42, help='random seed')
     parser.add_argument('--intraview_negs' ,default="none")
     parser.add_argument('--preepochs' ,type=int, default = 500, help='pretraining epoch')
-    parser.add_argument('--per_epoch' ,type=int, default = 10, help='pretraining epoch')
-    parser.add_argument('--pre_learning_rate',type=float, default = 0.01, help='pre training learning rate')
-    parser.add_argument('--aug1', type=float, default = 0.3, help='aug parameter')
-    parser.add_argument('--aug2', type=float, default = 0.3, help='aug parameter')
+    parser.add_argument('--per_epoch' ,type=int, default = 50, help='pretraining epoch')
+    parser.add_argument('--pre_learning_rate',type=float, default = 0.001, help='pre training learning rate')
+    parser.add_argument('--aug1', type=float, default = 0.2, help='aug parameter')
+    parser.add_argument('--aug2', type=float, default = 0.2, help='aug parameter')
     parser.add_argument('--runs', type=int, default=3, help='number of distinct runs')
     parser.add_argument('--num_layer', type=int, default=2, help='number of layers')
     parser.add_argument('--device', type=int, default=1)

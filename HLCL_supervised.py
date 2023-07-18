@@ -20,7 +20,7 @@ from torch_geometric.utils import (
     to_torch_csr_tensor,
 )
 import datetime
-from HLCL.utils import get_arguments, split_edges,seed_everything, edge_create
+from HLCL.utils import get_arguments, split_edges,seed_everything, edge_create, create_neg_mask,create_neg_mask_cuda
 import os
 from HLCL.models import Encoder,HLCLConv, DualBranchContrast
 from torch_geometric.utils import dense_to_sparse
@@ -122,12 +122,16 @@ for run in range(args.runs):
         nongroup = torch.where(torch.logical_and(data.y!=i, torch.tensor([k in split["train"] for k in torch.tensor(range(data.num_nodes))]).to(device)))[0]
         neg_mask = torch.zeros(data.x.shape[0])
         neg_mask[nongroup] = 1.
-        neg_masks.append(neg_mask) 
+        neg_masks.append(neg_mask)
+    unknown_neg_masks = create_neg_mask(args, device, unknown_low_edge_index, unknown_high_edge_index, data.x)
     for j in range(len(data.y)):
         if j in split["train"]:
             neg_sample.append(neg_masks[data.y[j]])
         else:
-            neg_sample.append(torch.ones(data.x.shape[0]).scatter_(0 ,torch.tensor(j), 0))
+            if unknown_neg_masks is None:
+                neg_sample.append(torch.ones(data.x.shape[0]).scatter_(0 ,torch.tensor(j), 0))
+            else:
+                neg_sample.append(unknown_neg_masks[j])
     neg_sample = torch.stack(neg_sample).to(device)
     aug1 = A.Compose([A.EdgeRemoving(pe=args.aug1), A.FeatureMasking(pf=args.aug2)])
     aug2 = A.Compose([A.EdgeRemoving(pe=args.aug1), A.FeatureMasking(pf=args.aug2)])
@@ -153,6 +157,14 @@ for run in range(args.runs):
             for epoch in range(preepochs):
                 if epoch % args.per_epoch == 0 and epoch >= args.per_epoch:
                     loss, unknown_low_edge_index, unknown_high_edge_index, unknown_low_edge_weight, unknown_high_edge_weight = train_rewire(args, encoder_model, contrast_model, data.x, unknown_edges, device, unknown_low_edge_index, unknown_high_edge_index, unknown_low_edge_weight, unknown_high_edge_weight, optimizer, True, known_info)
+                    if args.neg != "simple":
+                        unknown_neg_mask = create_neg_mask_cuda(args, device, unknown_low_edge_index, unknown_high_edge_index, data.x)
+                        for j in range(len(data.y)):
+                            if j in split["train"]:
+                                pass
+                            else:
+                                neg_sample[j] = unknown_neg_masks[j]
+                        
                 else:
                     loss = train_rewire(args, encoder_model, contrast_model, data.x, unknown_edges, device, unknown_low_edge_index, unknown_high_edge_index, unknown_low_edge_weight, unknown_high_edge_weight, optimizer, False, known_info)
                 pbar.set_postfix({'loss': loss})
@@ -175,7 +187,7 @@ best_std = performance['std'][np.argmax(performance['std'])]
 best_acc = np.max(performance['acc'])
 
 
-with open('./results/{}_HLCL_supervised.csv'.format(args.dataset), 'a+') as file:
+with open('./new_result/{}_HLCL_supervised_{}.csv'.format(args.dataset, args.edge), 'a+') as file:
     file.write('\n')
     file.write('Time: {}\n'.format(datetime.datetime.now()))
     file.write('pre_learning_rate = {}\n'.format(pre_learning_rate))
@@ -183,10 +195,10 @@ with open('./results/{}_HLCL_supervised.csv'.format(args.dataset), 'a+') as file
     file.write('Low K = {}\n'.format(args.low_k))
     file.write('High K = {}\n'.format(args.high_k))
     file.write('Edge Creation = {}\n'.format(args.md))
-    file.write('Combine X = {}\n'.format(args.two_hop))
+    file.write('Combine X = {}\n'.format(args.combine_x))
     file.write('Edge Mode = {}\n'.format(args.mode))
     file.write('EdgeRemoving Aug = {}\n'.format(args.aug1))
     file.write('FeatMasking Aug = {}\n'.format(args.aug2))
-    file.write('Intra_Neg: {}\n'.format(args.intraview_negs))
+    file.write('Negative Masks: {}\n'.format(args.neg))
     file.write('Num of Layers = {}\n'.format(args.num_layer))
     file.write('(E):Mean Accuracy: {}, with Std: {}, at Epoch {}'.format(best_acc, best_std, best_epoch))
