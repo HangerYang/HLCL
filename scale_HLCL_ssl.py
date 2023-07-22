@@ -32,7 +32,7 @@ def train(args, encoder_model, contrast_model, x, edge_index, device, lp_edge_in
         return loss.item()
 
 
-def test(args, encoder_model, x, edge_index, device,lp_edge_index, hp_edge_index, low_edge_weight, high_edge_weight, y, split):
+def test(args, encoder_model, x, lp_edge_index, hp_edge_index, low_edge_weight, high_edge_weight, y, split):
     encoder_model.eval()
     # hp_edge_index, high_edge_weight = remove_self_loops(hp_edge_index, high_edge_weight)
     z, _, _= encoder_model(args, x, lp_edge_index, hp_edge_index ,low_edge_weight, high_edge_weight)
@@ -98,10 +98,10 @@ for run in range(args.runs):
             pbar.set_postfix({'loss': loss})
             pbar.update()
             if epoch % args.pre_eval == 0 and epoch >= args.pre_eval:
-                test_result = test(args, encoder_model, data.x, data.edge_index, device, low_edge_index, high_edge_index, low_edge_weight, high_edge_weight, data.y, split)
+                test_result = test(args, encoder_model, data.x, low_edge_index, high_edge_index, low_edge_weight, high_edge_weight, data.y, split)
                 total_result.append((run, epoch, test_result["accuracy"]))
 
-test_result = test(args, encoder_model, data.x, data.edge_index, device,low_edge_index, high_edge_index, low_edge_weight, high_edge_weight, data.y, split)
+test_result = test(args, encoder_model, data.x,low_edge_index, high_edge_index, low_edge_weight, high_edge_weight, data.y, split)
 total_result.append((run, epoch, test_result["accuracy"]))
 performance = {"epoch": [], "acc":[], "std":[]}
 total_result = np.asarray(total_result)

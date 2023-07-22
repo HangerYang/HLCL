@@ -8,6 +8,8 @@ from torch_geometric.utils import (
 )
 import torch.nn.functional as F
 import argparse
+from torch_geometric.loader import ClusterData, ClusterLoader, RandomNodeSampler
+
 def create_neg_mask(args, device, low_graph=None, high_graph=None, x=None):
     if args.neg == "inverse_low":
         a = to_dense_adj(low_graph)
@@ -280,7 +282,15 @@ def split_edges(edge_index, split):
 
 
 
-
+def make_loader(args, dataset, idx, mini_batch=True, device=torch.device('cpu'), test=False):
+    if not mini_batch:
+        loader = RandomNodeSampler(dataset, num_parts=1, shuffle=True, num_workers=0)
+        return loader
+        
+    if args.train_batch == 'cluster':
+        cluster_data = ClusterData(dataset, num_parts=args.num_parts)
+        loader = ClusterLoader(cluster_data, batch_size=args.cluster_batch_size, shuffle=True, num_workers=0)
+        
 
 def get_arguments(): 
     parser = argparse.ArgumentParser()
@@ -290,11 +300,11 @@ def get_arguments():
     parser.add_argument('--seed', type=int, default=42, help='random seed')
     parser.add_argument('--intraview_negs' ,default="none")
     parser.add_argument('--preepochs' ,type=int, default = 500, help='pretraining epoch')
-    parser.add_argument('--per_epoch' ,type=int, default = 50, help='pretraining epoch')
+    parser.add_argument('--per_epoch' ,type=int, default = 50, help='graph update frequency')
     parser.add_argument('--pre_learning_rate',type=float, default = 0.001, help='pre training learning rate')
     parser.add_argument('--aug1', type=float, default = 0.2, help='aug parameter')
     parser.add_argument('--aug2', type=float, default = 0.2, help='aug parameter')
-    parser.add_argument('--runs', type=int, default=3, help='number of distinct runs')
+    parser.add_argument('--runs', type=int, default=10, help='number of distinct runs')
     parser.add_argument('--num_layer', type=int, default=2, help='number of layers')
     parser.add_argument('--device', type=int, default=1)
     parser.add_argument('--edge', type=str, default="hard_num")
@@ -305,5 +315,7 @@ def get_arguments():
     parser.add_argument('--md', type=str, default = "union")
     parser.add_argument('--mode', type=str, default = "known")
     parser.add_argument('--neg', type=str, default = "simple")
+    parser.add_argument('--split', type=str, default = "simple")
     args, unknown = parser.parse_known_args()
     return args
+

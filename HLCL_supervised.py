@@ -13,12 +13,6 @@ from Evaluator import LREvaluator
 import numpy as np
 
 from utility.data import dataset_split
-import argparse
-from torch_geometric.utils import ( 
-    remove_self_loops,
-    to_edge_index,
-    to_torch_csr_tensor,
-)
 import datetime
 from HLCL.utils import get_arguments, split_edges,seed_everything, edge_create, create_neg_mask,create_neg_mask_cuda
 import os
@@ -80,6 +74,7 @@ def get_split_given(data, run, device):
 args = get_arguments()
 seed_everything(args.seed)
 device = args.device
+
 data = dataset_split(dataset_name = args.dataset)
 hidden_dim=512
 proj_dim=256
@@ -92,11 +87,11 @@ neg_masks = []
 epoch = 0
 data.edge_index = add_self_loops(data.edge_index)[0]
 for run in range(args.runs):
-    # split = get_split(data.x.size()[0], train_ratio=0.48, test_ratio=0.2)
-    # split["train"] = split["train"].to(device)
+    split = get_split(data.x.size()[0], train_ratio=0.6, test_ratio=0.2)
+    split["train"] = split["train"].to(device)
     low_pass_graph = []
     high_pass_graph = []
-    split = get_split_given(data, run, device)
+    # split = get_split_given(data, run, device)
     unknown_edges, known_edges = split_edges(data.edge_index, split)
     unknown_edges = unknown_edges.t()
     for i in known_edges:
@@ -128,7 +123,7 @@ for run in range(args.runs):
         if j in split["train"]:
             neg_sample.append(neg_masks[data.y[j]])
         else:
-            if unknown_neg_masks is None:
+            if args.neg == "simple":
                 neg_sample.append(torch.ones(data.x.shape[0]).scatter_(0 ,torch.tensor(j), 0))
             else:
                 neg_sample.append(unknown_neg_masks[j])
