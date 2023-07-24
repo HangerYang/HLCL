@@ -447,6 +447,7 @@ def get_arguments():
     parser.add_argument('--split', type=str, default = "simple")
     parser.add_argument('--cluster_batch_size', type=int, default = 1)
     parser.add_argument('--num_parts', type=int, default = 200)
+    parser.add_argument('--eval', type=str, default = "acc")
     args, unknown = parser.parse_known_args()
     return args
 

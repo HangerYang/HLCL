@@ -206,7 +206,7 @@ def dataset_split(file_loc = './data/', dataset_name = 'cora', train_ratio=0.1, 
         dataset = Actor(root=file_loc+dataset_name, transform=T.NormalizeFeatures())
     elif dataset_name in ['WikiCS']:
         dataset = WikiCS(root =file_loc+dataset_name, transform=T.NormalizeFeatures())
-    elif dataset_name in ["Roman-empire", "Amazon-ratings"]:
+    elif dataset_name in ["Roman-empire", "Amazon-ratings", "Minesweeper", "Tolokers", "Questions"]:
         dataset = HeterophilousGraphDataset(root =file_loc+dataset_name, name=dataset_name, transform=T.NormalizeFeatures())
     elif dataset_name in ["Penn94", "twitch-gamer", "pokec", "genius"]:
         dataset = load_nc_dataset(dataset_name)
@@ -221,7 +221,7 @@ def dataset_split(file_loc = './data/', dataset_name = 'cora', train_ratio=0.1, 
         raise Exception('dataset not available...')
     if dataset_name not in ["Penn94","chameleon_filtered", "squirrel_filtered", "twitch-gamer", "pokec", "genius"] :
         data = dataset[0]
-        if dataset_name in ["Roman-empire", "Amazon-ratings"]:
+        if dataset_name in ["Roman-empire", "Amazon-ratings", "Minesweeper", "Tolokers", "Questions"]:
             data.edge_index = to_undirected(data.edge_index)
     # if dataset_name in ['cornell', 'texas', 'wisconsin', 'chameleon', 'squirrel', 'actor', 'WikiCS']:
     #     data.train_mask = torch.swapaxes(data.train_mask, 0, 1)

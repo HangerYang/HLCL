@@ -67,7 +67,7 @@ high_k = args.high_k
 data = data.to(device)
 for run in range(args.runs):
     if args.split == "simple":
-        split = get_split(data.x.size()[0], train_ratio=0.1, test_ratio=0.8)
+        split = get_split(data.x.size()[0], train_ratio=0.5, test_ratio=0.25)
     else:
         split = get_split_given(data, run, device)
     aug1 = A.Compose([A.EdgeRemoving(pe=args.aug1), A.FeatureMasking(pf=args.aug2)])
