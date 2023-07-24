@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from torch_geometric import transforms as T
-from torch_geometric.utils import to_undirected
+from torch_geometric.utils import to_undirected, add_self_loops
 import scipy as sp
 import networkx as nx
 from torch_geometric.datasets import Planetoid, WebKB, Actor, WikipediaNetwork, WikiCS, HeterophilousGraphDataset
@@ -233,6 +233,7 @@ def dataset_split(file_loc = './data/', dataset_name = 'cora', train_ratio=0.1, 
     # else:
         # data = train_test_split_nodes(data, train_ratio=train_ratio, val_ratio=val_ratio, test_ratio=test_ratio)
         data.num_classes = dataset.num_classes
+        data.edge_index = add_self_loops(data.edge_index)
     return data
 
 # def build_graph(dataset,train_ratio=0.1):

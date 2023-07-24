@@ -37,7 +37,7 @@ def test(args, encoder_model, x, edge_index, device,lp_edge_index, hp_edge_index
     # hp_edge_index, high_edge_weight = remove_self_loops(hp_edge_index, high_edge_weight)
     z, _, _= encoder_model(args, x, lp_edge_index, hp_edge_index ,low_edge_weight, high_edge_weight)
     # split = get_split(num_samples=z.size()[0], train_ratio=0.1, test_ratio=0.8)
-    result = LREvaluator()(z, y, split)
+    result = LREvaluator()(z, y, split, args.eval)
     return result
 
 def get_split_given(data, run, device):
