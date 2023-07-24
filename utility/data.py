@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from torch_geometric import transforms as T
-from torch_geometric.utils import to_networkx, add_self_loops, get_laplacian
+from torch_geometric.utils import to_undirected
 import scipy as sp
 import networkx as nx
 from torch_geometric.datasets import Planetoid, WebKB, Actor, WikipediaNetwork, WikiCS, HeterophilousGraphDataset
@@ -208,7 +208,7 @@ def dataset_split(file_loc = './data/', dataset_name = 'cora', train_ratio=0.1, 
         dataset = WikiCS(root =file_loc+dataset_name, transform=T.NormalizeFeatures())
     elif dataset_name in ["Roman-empire", "Amazon-ratings"]:
         dataset = HeterophilousGraphDataset(root =file_loc+dataset_name, name=dataset_name, transform=T.NormalizeFeatures())
-    elif dataset_name in ["penn94", "twitch-gamer", "pokec", "genius"]:
+    elif dataset_name in ["Penn94", "twitch-gamer", "pokec", "genius"]:
         dataset = load_nc_dataset(dataset_name)
         data = Data(x=dataset.graph["node_feat"], edge_index=dataset.graph["edge_index"], y=dataset.label, num_features = dataset.graph["node_feat"].shape[1])
     elif dataset_name in ["chameleon_filtered", "squirrel_filtered"]:
@@ -219,8 +219,10 @@ def dataset_split(file_loc = './data/', dataset_name = 'cora', train_ratio=0.1, 
         data.test_mask = torch.tensor(a["test_masks"]).t()
     else:
         raise Exception('dataset not available...')
-    if dataset_name not in ["penn94","chameleon_filtered", "squirrel_filtered", "twitch-gamer", "pokec", "genius"] :
+    if dataset_name not in ["Penn94","chameleon_filtered", "squirrel_filtered", "twitch-gamer", "pokec", "genius"] :
         data = dataset[0]
+        if dataset_name in ["Roman-empire", "Amazon-ratings"]:
+            data.edge_index = to_undirected(data.edge_index)
     # if dataset_name in ['cornell', 'texas', 'wisconsin', 'chameleon', 'squirrel', 'actor', 'WikiCS']:
     #     data.train_mask = torch.swapaxes(data.train_mask, 0, 1)
     #     data.val_mask = torch.swapaxes(data.val_mask, 0, 1)

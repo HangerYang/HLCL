@@ -7,38 +7,53 @@ from GCL.eval import get_split
 from Evaluator import LREvaluator
 import numpy as np
 from utility.data import dataset_split
-from HLCL.utils import get_arguments, seed_everything, edge_create, two_hop, create_neg_mask_cuda
-from HLCL.models import Encoder, HLCLConv, DualBranchContrast
+from HLCL.utils import get_arguments, seed_everything, edge_create_updated, two_hop, create_neg_mask_cuda_updated
+from HLCL.models import Encoder_updated, HLCLConv, DualBranchContrast
 from torch_geometric.utils import dense_to_sparse
 import torch.nn.functional as F
 import datetime
+from torch_geometric.loader import ClusterData, ClusterLoader
 
-def train(args, encoder_model, contrast_model, x, edge_index, device, lp_edge_index, hp_edge_index, low_edge_weight, high_edge_weight,optimizer, edges=False, neg_mask = None):
+def train(args, subgraphs, encoder_model, contrast_model, optimizer, device, edges):
     encoder_model.train()
     optimizer.zero_grad()
-    # hp_edge_index, high_edge_weight = remove_self_loops(hp_edge_index, high_edge_weight)
-    if edges:
-        (z, z1, z2), low_edge_index, high_edge_index, low_edge_weight, high_edge_weight = encoder_model(args, x, lp_edge_index, hp_edge_index ,low_edge_weight, high_edge_weight, origin_edge_index = edge_index, edges=True, device = device)
-    else:
-        (z, z1, z2) = encoder_model(args, x, lp_edge_index, hp_edge_index ,low_edge_weight, high_edge_weight)
-    h1, h2 = [encoder_model.project(x) for x in [z1, z2]]
-    # h1, h2 = z1, z2
-    loss = contrast_model(h1, h2, neg_mask=neg_mask)
-    loss.backward()
+    new_subgraphs = []
+    total_loss = 0
+    for subgraph in subgraphs:
+        if edges:
+            (z, z1, z2), subgraph = encoder_model(args, subgraph, edges=True, device = device)
+            new_subgraphs.append(subgraph)
+        else:
+            (z, z1, z2) = encoder_model(args, subgraph, edges=False)
+        h1, h2 = [encoder_model.project(x) for x in [z1, z2]]
+        # h1, h2 = z1, z2
+        loss = contrast_model(h1, h2, neg_mask=subgraph.neg_mask)
+        total_loss = total_loss + loss
+    
+    total_loss.backward()
     optimizer.step()
     if edges:
-        return loss.item(), low_edge_index.to(device), high_edge_index.to(device), low_edge_weight.to(device), high_edge_weight.to(device)
+        return total_loss.item(), new_subgraphs
     else:
-        return loss.item()
+        return total_loss.item()
 
 
-def test(args, encoder_model, x, lp_edge_index, hp_edge_index, low_edge_weight, high_edge_weight, y, split):
+def test(args, subgraphs, encoder_model):
     encoder_model.eval()
-    # hp_edge_index, high_edge_weight = remove_self_loops(hp_edge_index, high_edge_weight)
-    z, _, _= encoder_model(args, x, lp_edge_index, hp_edge_index ,low_edge_weight, high_edge_weight)
-    # split = get_split(num_samples=z.size()[0], train_ratio=0.1, test_ratio=0.8)
-    result = LREvaluator()(z, y, split)
-    return result
+    results = []
+    for subgraph in subgraphs:
+        subgraph.y = torch.flatten(subgraph.y)
+        right_idx = torch.where(subgraph.y>-1)[0]
+        z, _, _= encoder_model(args, subgraph, edges=False)
+        z = z[right_idx]
+        subgraph.y = subgraph.y[right_idx]
+        split = get_split(num_samples=z.size()[0], train_ratio=0.5, test_ratio=0.25)
+        result = LREvaluator()(z, subgraph.y, split)
+        results.append(result["accuracy"])
+    result = np.mean(results)
+    return {
+            'accuracy': result
+        }
 
 def get_split_given(data, run, device):
     split = {}
@@ -50,7 +65,7 @@ def get_split_given(data, run, device):
 
 args = get_arguments()
 seed_everything(args.seed)
-device = args.device
+device = args.device 
 data = dataset_split(dataset_name = args.dataset)
 if args.two_hop:
     data = two_hop(data)
@@ -64,44 +79,42 @@ preepochs=args.preepochs
 epoch = 0
 low_k = args.low_k
 high_k = args.high_k
-data = data.to(device)
 for run in range(args.runs):
-    if args.split == "simple":
-        split = get_split(data.x.size()[0], train_ratio=0.1, test_ratio=0.8)
-    else:
-        split = get_split_given(data, run, device)
     aug1 = A.Compose([A.EdgeRemoving(pe=args.aug1), A.FeatureMasking(pf=args.aug2)])
     aug2 = A.Compose([A.EdgeRemoving(pe=args.aug1), A.FeatureMasking(pf=args.aug2)])
-
     gconv = HLCLConv(input_dim=data.num_features, hidden_dim=hidden_dim, activation=torch.nn.ReLU, num_layers=args.num_layer).to(device)
-    if args.edge == "soft":
-        graph, adj_idx = edge_create(args, data.x, data.edge_index)
-        low_graph = F.normalize(graph)
-        high_graph = F.normalize(adj_idx - low_graph)
-        low_edge_index, low_edge_weight = dense_to_sparse(low_graph)
-        high_edge_index, high_edge_weight = dense_to_sparse(high_graph)
-    else:
-        low_edge_index, high_edge_index, low_edge_weight, high_edge_weight = edge_create(args, data.x, data.edge_index, high_k, low_k, device)
-    neg_mask = create_neg_mask_cuda(args, device, low_edge_index, high_edge_index, data.x)
-    
-    encoder_model = Encoder(encoder=gconv, augmentor=(aug1, aug2), hidden_dim=hidden_dim, proj_dim=hidden_dim).to(device)
+    encoder_model = Encoder_updated(encoder=gconv, augmentor=(aug1, aug2), hidden_dim=hidden_dim, proj_dim=hidden_dim).to(device)
     contrast_model = DualBranchContrast(loss=L.InfoNCE(tau=0.2), mode='L2L', intraview_negs=args.intraview_negs).to(device)
     optimizer = Adam(encoder_model.parameters(), lr=pre_learning_rate)
-
+    cluster_data = ClusterData(data, num_parts=args.num_parts)
+    train_loader = ClusterLoader(cluster_data, batch_size=args.cluster_batch_size, shuffle=True, num_workers=8)
+    subgraphs = []
+    for subgraph in train_loader:
+        subgraph = subgraph.to(device)
+    # if args.edge == "soft":
+    #     graph, adj_idx = edge_create(args, data.x, data.edge_index)
+    #     low_graph = F.normalize(graph)
+    #     high_graph = F.normalize(adj_idx - low_graph)
+    #     low_edge_index, low_edge_weight = dense_to_sparse(low_graph)
+    #     high_edge_index, high_edge_weight = dense_to_sparse(high_graph)
+    # else:
+        subgraph = edge_create_updated(args, subgraph, device)
+        subgraphs.append(subgraph)
+    subgraphs = create_neg_mask_cuda_updated(args, subgraphs,device)
     with tqdm(total=preepochs, desc='(T)') as pbar:
         for epoch in range(preepochs):
             if epoch % args.per_epoch == 0 and epoch >= args.per_epoch:
-                loss, low_edge_index, high_edge_index, low_edge_weight, high_edge_weight= train(args = args, encoder_model = encoder_model, contrast_model = contrast_model, x = data.x, edge_index = data.edge_index, device= device, lp_edge_index = low_edge_index, hp_edge_index = high_edge_index, low_edge_weight = low_edge_weight, high_edge_weight = high_edge_weight, optimizer = optimizer,edges = True, neg_mask=neg_mask)
-                neg_mask = create_neg_mask_cuda(args, device, low_edge_index, high_edge_index, data.x)
+                loss, subgraphs = train(args, subgraphs, encoder_model, contrast_model, optimizer, device, edges=True)
+                subgraphs = create_neg_mask_cuda_updated(args, subgraphs, device)
             else:
-                loss = train(args = args, encoder_model = encoder_model, contrast_model = contrast_model, x = data.x, edge_index = data.edge_index, device= device, lp_edge_index = low_edge_index, hp_edge_index = high_edge_index, low_edge_weight = low_edge_weight, high_edge_weight = high_edge_weight, optimizer = optimizer,edges = False, neg_mask=neg_mask)
+                loss = train(args, subgraphs, encoder_model, contrast_model, optimizer, device, edges=False)
             pbar.set_postfix({'loss': loss})
             pbar.update()
             if epoch % args.pre_eval == 0 and epoch >= args.pre_eval:
-                test_result = test(args, encoder_model, data.x, low_edge_index, high_edge_index, low_edge_weight, high_edge_weight, data.y, split)
+                test_result = test(args, subgraphs, encoder_model)
                 total_result.append((run, epoch, test_result["accuracy"]))
 
-test_result = test(args, encoder_model, data.x,low_edge_index, high_edge_index, low_edge_weight, high_edge_weight, data.y, split)
+test_result = test(args, subgraphs, encoder_model)
 total_result.append((run, epoch, test_result["accuracy"]))
 performance = {"epoch": [], "acc":[], "std":[]}
 total_result = np.asarray(total_result)

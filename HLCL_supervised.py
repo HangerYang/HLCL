@@ -76,7 +76,7 @@ seed_everything(args.seed)
 device = args.device
 
 data = dataset_split(dataset_name = args.dataset)
-hidden_dim=512
+hidden_dim=128
 proj_dim=256
 total_result = []
 device = torch.device("cuda:{}".format(device))
@@ -87,7 +87,7 @@ neg_masks = []
 epoch = 0
 data.edge_index = add_self_loops(data.edge_index)[0]
 for run in range(args.runs):
-    split = get_split(data.x.size()[0], train_ratio=0.6, test_ratio=0.2)
+    split = get_split(data.x.size()[0], train_ratio=0.5, test_ratio=0.25)
     split["train"] = split["train"].to(device)
     low_pass_graph = []
     high_pass_graph = []

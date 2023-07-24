@@ -90,6 +90,135 @@ def add_edge(edge_index: torch.Tensor, ratio: float) -> torch.Tensor:
 
     return coalesce(edge_index)
 
+
+def create_neg_mask_cuda_updated(args, datas, device):
+    new_datas = []
+    for data in datas:
+        if args.neg == "ilow":
+            a = to_dense_adj(data.low_edge_index)
+            a[a==0] = -1
+            a[a>0] = 0
+            a = a * -1
+            data.neg_mask = a[0].to(device)
+        elif args.neg == "high":
+            a = to_dense_adj(data.high_edge_index)
+            data.neg_mask = a[0].to(device)
+        elif args.neg == "simple":
+            data.neg_mask = -1
+        elif args.neg == "global":
+            graph = data.x @ data.x.t()
+            graph[graph==0] = 10
+            indices = graph.topk(k=300, largest=False)[1]
+            data.neg_mask = torch.zeros(graph.shape[0], graph.shape[0]).to(device).scatter_(1, indices, 1)
+            data.neg_mask = data.neg_mask.to(device)
+        new_datas.append(data)
+    return new_datas
+
+def edge_create_updated(args, data, device):
+    with torch.no_grad():
+        graph = data.x @ data.x.t()
+        adj_idx = to_dense_adj(data.edge_index)[0]
+        graph = graph*adj_idx
+        edge_idx, edge_weight = dense_to_sparse(graph)
+        node_lst = {}
+        weight_lst = {}
+        k = len(edge_idx.t())
+        for i in range(k):
+            if i > 0 and edge_idx[0][i] == edge_idx[0][i-1]:
+                node_lst[edge_idx[0][i].item()].append(edge_idx[1][i])
+                weight_lst[edge_idx[0][i].item()].append(edge_weight[i])
+            else:
+                node_lst[edge_idx[0][i].item()] = []
+                node_lst[edge_idx[0][i].item()].append(edge_idx[1][i])
+                weight_lst[edge_idx[0][i].item()] = []
+                weight_lst[edge_idx[0][i].item()].append(edge_weight[i])
+        low_graph = []
+        low_weight = []
+        high_graph = []
+        high_weight = []
+        for node, wgt in weight_lst.items():
+            t_len = len(wgt)
+            hk = np.ceil(t_len * args.high_k).astype(int)
+            lk = np.ceil(t_len * args.low_k).astype(int)
+            wgt = torch.tensor(wgt)
+            low_edge_wgt, low_edge_idx = torch.topk(wgt, lk)
+            remained_wgts, remained_idx = th_delete(wgt, low_edge_idx)
+            if len(remained_wgts) > hk:
+                high_edge_wgt, high_edge_idx = torch.topk(remained_wgts, hk,largest=False)
+                high_edge_idx = remained_idx[high_edge_idx]
+            else:
+                high_edge_wgt, high_edge_idx = remained_wgts, remained_idx
+            for idx, neigh_node in enumerate(high_edge_idx):
+                edge_pair = torch.tensor([node, node_lst[node][neigh_node]])
+                high_graph.append(edge_pair)
+                high_weight.append(high_edge_wgt[idx])
+            for idx, neigh_node in enumerate(low_edge_idx):
+                edge_pair = torch.tensor([node, node_lst[node][neigh_node]])
+                low_graph.append(edge_pair)
+                low_weight.append(low_edge_wgt[idx])
+        data.high_edge_index = torch.stack(high_graph).t().to(device)
+        data.low_edge_index = torch.stack(low_graph).t().to(device)
+        data.high_edge_weight = torch.ones(data.high_edge_index.shape[1]).to(device)
+        data.low_edge_weight = torch.ones(data.low_edge_index.shape[1]).to(device)
+    return data
+                # if args.edge == "hard_num":
+        #     graph = x @ x.t()
+        #     adj_idx = to_dense_adj(edge_index)[0]
+        #     graph = graph*adj_idx
+        #     indices = graph.topk(k=int(low_k))[1]
+        #     indices = [indices[i][graph[i][indices[i]] > 0] if (graph[i][indices[i]] > 0).sum() > 0 else torch.tensor([i]) for i in range(indices.shape[0])]
+        #     max_length = max([len(l) for l in indices])
+        #     indices = [torch.cat((l, l[-1].repeat(max_length - len(l)))).to(device) for l in indices]
+        #     indices = torch.stack(indices)
+        #     low_edge_index = torch.zeros(graph.shape[0], graph.shape[0]).to(device).scatter_(1, indices, 1)
+        #     low_edge_index, low_edge_weight = dense_to_sparse(low_edge_index)
+            
+        #     graph[graph==0] = 10
+        #     indices = graph.topk(k=int(high_k), largest=False)[1]
+        #     indices = [indices[i][graph[i][indices[i]] < 10] if (graph[i][indices[i]] < 10).sum() > 0 else torch.tensor([i]) for i in range(indices.shape[0]) ]
+        #     max_length = max([len(l) for l in indices])
+        #     indices = [torch.cat((l, l[-1].repeat(max_length - len(l)))).to(device) for l in indices]
+        #     indices = torch.stack(indices)
+        #     high_edge_index = torch.zeros(graph.shape[0], graph.shape[0]).to(device).scatter_(1, indices, 1)
+        #     high_edge_index, high_edge_weight = dense_to_sparse(high_edge_index)
+        # elif args.edge == "hard_ratio":
+            # graph = x @ x.t()
+            # adj_idx = to_dense_adj(edge_index)[0]
+            # num_edges = [i.sum() for i in adj_idx]
+            # graph = graph*adj_idx
+            # indices = []
+            # for i in range(len(num_edges)):
+            #     num = num_edges[i].item()
+            #     ratio = int(num * low_k)
+            #     indices.append(graph[i].topk(k=ratio)[1])
+            # indices = [indices[i] if indices[i].shape[0] > 0 else torch.tensor([i]) for i in range(len(indices))]
+            # max_length = max([len(l) for l in indices])
+            # indices = [torch.cat((l, l[-1].repeat(max_length - len(l)))).to(device) for l in indices]
+            # indices = torch.stack(indices)
+            # low_edge_index = torch.zeros(graph.shape[0], graph.shape[0]).to(device).scatter_(1, indices, 1)
+            # low_edge_index, low_edge_weight = dense_to_sparse(low_edge_index)
+
+            # graph[graph==0] = 10
+            # indices = []
+            # for i in range(len(num_edges)):
+            #     num = num_edges[i].item()
+            #     ratio = int(num * high_k)
+            #     indices.append(graph[i].topk(k=ratio, largest=False)[1])
+            # indices = [indices[i] if indices[i].shape[0] > 0 else torch.tensor([i]) for i in range(len(indices))]
+            # max_length = max([len(l) for l in indices])
+            # indices = [torch.cat((l, l[-1].repeat(max_length - len(l)))).to(device) for l in indices]
+            # indices = torch.stack(indices)
+            # high_edge_index = torch.zeros(graph.shape[0], graph.shape[0]).to(device).scatter_(1, indices, 1)
+            # high_edge_index, high_edge_weight = dense_to_sparse(high_edge_index)
+        # elif args.edge == "soft":
+        #     graph = x @ x.t()
+        #     adj_idx = to_dense_adj(edge_index)[0]
+        #     graph = graph * adj_idx
+        #     return graph, adj_idx
+
+
+    
+
 def edge_create(args, x, edge_index, high_k=0, low_k=0, device=None):
     with torch.no_grad():
         if args.edge == "hard_num":
@@ -307,15 +436,17 @@ def get_arguments():
     parser.add_argument('--runs', type=int, default=10, help='number of distinct runs')
     parser.add_argument('--num_layer', type=int, default=2, help='number of layers')
     parser.add_argument('--device', type=int, default=1)
-    parser.add_argument('--edge', type=str, default="hard_num")
-    parser.add_argument('--low_k', type=float, default=1.)
-    parser.add_argument('--high_k', type=float, default=1.)
+    parser.add_argument('--edge', type=str, default="hard_ratio")
+    parser.add_argument('--low_k', type=float, default=0.2)
+    parser.add_argument('--high_k', type=float, default=0.2)
     parser.add_argument('--two_hop', action='store_true')
     parser.add_argument('--combine_x', action='store_true')
     parser.add_argument('--md', type=str, default = "union")
     parser.add_argument('--mode', type=str, default = "known")
     parser.add_argument('--neg', type=str, default = "simple")
     parser.add_argument('--split', type=str, default = "simple")
+    parser.add_argument('--cluster_batch_size', type=int, default = 1)
+    parser.add_argument('--num_parts', type=int, default = 200)
     args, unknown = parser.parse_known_args()
     return args
 
