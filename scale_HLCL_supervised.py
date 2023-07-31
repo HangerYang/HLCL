@@ -172,17 +172,18 @@ for run in range(args.runs):
             if epoch % args.pre_eval == 0 and epoch >= args.pre_eval:
                 test_result = test(args, subgraphs, encoder_model, splits)
                 total_result.append((run, epoch, test_result["accuracy"]))
-    test_result = test(args, subgraphs, encoder_model, splits)
-    total_result.append((run, epoch, test_result["accuracy"]))
-    performance = {"epoch": [], "acc":[], "std":[]}
-    total_result = np.asarray(total_result)
-    for epoch in np.unique(total_result[:,1]):
-        performance['acc'].append(np.mean(total_result[np.where(total_result[:,1] == epoch), 2]))
-        performance['std'].append(np.std(total_result[np.where(total_result[:,1] == epoch), 2]))
-        performance['epoch'].append(epoch)
-    best_epoch = performance['epoch'][np.argmax(performance['acc'])]
-    best_std = performance['std'][np.argmax(performance['std'])]
-    best_acc = np.max(performance['acc'])
+test_result = test(args, subgraphs, encoder_model, splits)
+total_result.append((run, epoch, test_result["accuracy"]))
+# print(total_result)
+performance = {"epoch": [], "acc":[], "std":[]}
+total_result = np.asarray(total_result)
+for epoch in np.unique(total_result[:,1]):
+    performance['acc'].append(np.mean(total_result[np.where(total_result[:,1] == epoch), 2]))
+    performance['std'].append(np.std(total_result[np.where(total_result[:,1] == epoch), 2]))
+    performance['epoch'].append(epoch)
+best_epoch = performance['epoch'][np.argmax(performance['acc'])]
+best_std = performance['std'][np.argmax(performance['std'])]
+best_acc = np.max(performance['acc'])
 with open('./new_result/{}_HLCL_supervised_{}.csv'.format(args.dataset, args.edge), 'a+') as file:
     file.write('\n')
     file.write('Time: {}\n'.format(datetime.datetime.now()))
