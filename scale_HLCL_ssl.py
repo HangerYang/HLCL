@@ -7,19 +7,18 @@ from GCL.eval import get_split
 from Evaluator import LREvaluator
 import numpy as np
 from utility.data import dataset_split
-from HLCL.utils import get_arguments, seed_everything, edge_create_updated, two_hop, create_neg_mask_cuda_updated
+from HLCL.utils import get_arguments, seed_everything, edge_create_updated, create_neg_mask_cuda_updated
 from HLCL.models import Encoder_updated, HLCLConv, DualBranchContrast
-from torch_geometric.utils import dense_to_sparse
 import torch.nn.functional as F
 import datetime
 from torch_geometric.loader import ClusterData, ClusterLoader
 
 def train(args, subgraphs, encoder_model, contrast_model, optimizer, device, edges):
     encoder_model.train()
-    optimizer.zero_grad()
     new_subgraphs = []
     total_loss = 0
     for subgraph in subgraphs:
+        optimizer.zero_grad()
         if edges:
             (z, z1, z2), subgraph = encoder_model(args, subgraph, edges=True, device = device)
             new_subgraphs.append(subgraph)
@@ -28,10 +27,9 @@ def train(args, subgraphs, encoder_model, contrast_model, optimizer, device, edg
         h1, h2 = [encoder_model.project(x) for x in [z1, z2]]
         # h1, h2 = z1, z2
         loss = contrast_model(h1, h2, neg_mask=subgraph.neg_mask)
+        loss.backward()
+        optimizer.step()
         total_loss = total_loss + loss
-    
-    total_loss.backward()
-    optimizer.step()
     if edges:
         return total_loss.item(), new_subgraphs
     else:
@@ -67,13 +65,12 @@ args = get_arguments()
 seed_everything(args.seed)
 device = args.device 
 data = dataset_split(dataset_name = args.dataset)
-if args.two_hop:
-    data = two_hop(data)
-hidden_dim=512
+# if args.two_hop:
+#     data = two_hop(data)
+hidden_dim=args.hidden
 proj_dim=256
 total_result = []
 device = torch.device("cuda:{}".format(device))
-hidden_dim = hidden_dim
 pre_learning_rate = args.pre_learning_rate
 preepochs=args.preepochs
 epoch = 0
@@ -85,7 +82,7 @@ for run in range(args.runs):
     gconv = HLCLConv(input_dim=data.num_features, hidden_dim=hidden_dim, activation=torch.nn.ReLU, num_layers=args.num_layer).to(device)
     encoder_model = Encoder_updated(encoder=gconv, augmentor=(aug1, aug2), hidden_dim=hidden_dim, proj_dim=hidden_dim).to(device)
     contrast_model = DualBranchContrast(loss=L.InfoNCE(tau=0.2), mode='L2L', intraview_negs=args.intraview_negs).to(device)
-    optimizer = Adam(encoder_model.parameters(), lr=pre_learning_rate)
+    optimizer = Adam(encoder_model.parameters(), lr=pre_learning_rate, weight_decay=5e-5)
     cluster_data = ClusterData(data, num_parts=args.num_parts)
     train_loader = ClusterLoader(cluster_data, batch_size=args.cluster_batch_size, shuffle=True, num_workers=8)
     subgraphs = []

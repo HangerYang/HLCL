@@ -52,8 +52,8 @@ args = get_arguments()
 seed_everything(args.seed)
 device = args.device
 data = dataset_split(dataset_name = args.dataset)
-if args.two_hop:
-    data = two_hop(data)
+# if args.two_hop:
+#     data = two_hop(data)
 hidden_dim=512
 proj_dim=256
 total_result = []

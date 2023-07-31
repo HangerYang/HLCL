@@ -211,6 +211,7 @@ def dataset_split(file_loc = './data/', dataset_name = 'cora', train_ratio=0.1, 
     elif dataset_name in ["Penn94", "twitch-gamer", "pokec", "genius"]:
         dataset = load_nc_dataset(dataset_name)
         data = Data(x=dataset.graph["node_feat"], edge_index=dataset.graph["edge_index"], y=dataset.label, num_features = dataset.graph["node_feat"].shape[1])
+        data.edge_index = to_undirected(data.edge_index)
     elif dataset_name in ["chameleon_filtered", "squirrel_filtered"]:
         a = np.load("/home/hyang/HL_Contrast/data/{}.npz".format(dataset_name))
         data = Data(x = torch.tensor(a["node_features"]), edge_index = torch.tensor(a["edges"].T), y = torch.tensor(a["node_labels"]))
@@ -221,8 +222,9 @@ def dataset_split(file_loc = './data/', dataset_name = 'cora', train_ratio=0.1, 
         raise Exception('dataset not available...')
     if dataset_name not in ["Penn94","chameleon_filtered", "squirrel_filtered", "twitch-gamer", "pokec", "genius"] :
         data = dataset[0]
-        if dataset_name in ["Roman-empire", "Amazon-ratings", "Minesweeper", "Tolokers", "Questions"]:
-            data.edge_index = to_undirected(data.edge_index)
+        data.num_classes = dataset.num_classes
+    if dataset_name in ["Roman-empire", "Amazon-ratings", "Minesweeper", "Tolokers", "Questions"]:
+        data.edge_index = to_undirected(data.edge_index)
     # if dataset_name in ['cornell', 'texas', 'wisconsin', 'chameleon', 'squirrel', 'actor', 'WikiCS']:
     #     data.train_mask = torch.swapaxes(data.train_mask, 0, 1)
     #     data.val_mask = torch.swapaxes(data.val_mask, 0, 1)
@@ -232,8 +234,8 @@ def dataset_split(file_loc = './data/', dataset_name = 'cora', train_ratio=0.1, 
     #         data.test_mask = np.repeat(data.test_mask[np.newaxis], 10, axis = 0)
     # else:
         # data = train_test_split_nodes(data, train_ratio=train_ratio, val_ratio=val_ratio, test_ratio=test_ratio)
-        data.num_classes = dataset.num_classes
-        data.edge_index = add_self_loops(data.edge_index)
+    # 
+    data.edge_index, _= add_self_loops(data.edge_index)
     return data
 
 # def build_graph(dataset,train_ratio=0.1):
