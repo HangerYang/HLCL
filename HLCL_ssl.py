@@ -37,7 +37,7 @@ def test(args, encoder_model, x, edge_index, device,lp_edge_index, hp_edge_index
     # hp_edge_index, high_edge_weight = remove_self_loops(hp_edge_index, high_edge_weight)
     z, _, _= encoder_model(args, x, lp_edge_index, hp_edge_index ,low_edge_weight, high_edge_weight)
     # split = get_split(num_samples=z.size()[0], train_ratio=0.1, test_ratio=0.8)
-    result = LREvaluator()(z, y, split)
+    result = LREvaluator()(z, y, split, args.eval)
     return result
 
 def get_split_given(data, run, device):
@@ -52,8 +52,8 @@ args = get_arguments()
 seed_everything(args.seed)
 device = args.device
 data = dataset_split(dataset_name = args.dataset)
-if args.two_hop:
-    data = two_hop(data)
+# if args.two_hop:
+#     data = two_hop(data)
 hidden_dim=512
 proj_dim=256
 total_result = []
@@ -67,7 +67,7 @@ high_k = args.high_k
 data = data.to(device)
 for run in range(args.runs):
     if args.split == "simple":
-        split = get_split(data.x.size()[0], train_ratio=0.1, test_ratio=0.8)
+        split = get_split(data.x.size()[0], train_ratio=0.5, test_ratio=0.25)
     else:
         split = get_split_given(data, run, device)
     aug1 = A.Compose([A.EdgeRemoving(pe=args.aug1), A.FeatureMasking(pf=args.aug2)])

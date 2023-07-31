@@ -20,16 +20,16 @@ class Mix_Pass(MessagePassing):
     def reset_parameters(self):
         self.lin.reset_parameters()
         self.bias.data.zero_()
-    def forward(self, x, edge_index, edge_weight, high_pass = False):
+    def forward(self, x, edge_index, edge_weight = None, high_pass = False):
         if high_pass:
-            edge_index, edge_weight = add_self_loops(edge_index, edge_weight, fill_value=1, num_nodes=x.size(0))
+            edge_index, edge_weight = add_self_loops(edge_index, edge_weight, num_nodes=x.size(0))
             edge_index, edge_weight = get_laplacian(edge_index, edge_weight, normalization="sym")
             
             x = self.lin(x)
             out = self.propagate(edge_index, x=x, edge_weight=edge_weight)
             out += self.bias
         else:
-            edge_index, edge_weight = add_self_loops(edge_index, edge_weight, fill_value=1, num_nodes=x.size(0))
+            edge_index, edge_weight = add_self_loops(edge_index, edge_weight, num_nodes=x.size(0))
             # edge_index, edge_weight = get_laplacian(edge_index, edge_weight, normalization="sym")
             edge_index, edge_weight = gcn_norm(edge_index, edge_weight,x.size(0), False, False)
             # Step 2: Linearly transform node feature matrix.
@@ -94,47 +94,6 @@ class Encoder(torch.nn.Module):
     def project(self, z: torch.Tensor) -> torch.Tensor:
         z = F.elu(self.fc1(z))
         return self.fc2(z)
-
-class GCN(torch.nn.Module):
-    def __init__(self, n_layer, in_dim, hi_dim, out_dim, dropout):
-        """
-        :param n_layer: number of layers
-        :param in_dim: input dimension
-        :param hi_dim: hidden dimension
-        :param out_dim: output dimension
-        :param dropout: dropout ratio
-        """
-        super(GCN, self).__init__()
-        assert (n_layer > 0)
-
-        self.num_layers = n_layer
-        self.gcns = torch.nn.ModuleList()
-        # first layer
-        self.gcns.append(GCNConv(in_dim, hi_dim))
-        # inner layers
-        # for _ in range(n_layer - 2):
-        #     self.gcns.append(GCNConv(hi_dim, hi_dim))
-        # last layer
-        self.gcns.append(GCNConv(hi_dim, out_dim))
-        self.dropout = dropout
-        self.reset_parameters()
-        self.activation = torch.nn.PReLU()
-    def reset_parameters(self):
-        for gcn in self.gcns:
-            gcn.reset_parameters()
-
-    def forward(self, x, edge_index):
-        # first layer
-        x = self.activation(self.gcns[0](x, edge_index))
-        x = F.dropout(x, p=self.dropout, training=self.training)
-        # inner layers
-        # if self.num_layers > 2:
-        #     for layer in range(1, self.num_layers - 1):
-        #         x = F.relu(self.gcns[layer](x, edge_index))
-        #         x = F.dropout(x, p=self.dropout, training=self.training)
-
-        # last layer
-        return F.log_softmax(self.activation(self.gcns[self.num_layers - 1](x, edge_index)), dim = 1)
 class Sampler(ABC):
     def __init__(self, intraview_negs="none"):
         self.intraview_negs = intraview_negs

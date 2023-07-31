@@ -94,7 +94,7 @@ def add_edge(edge_index: torch.Tensor, ratio: float) -> torch.Tensor:
 def create_neg_mask_cuda_updated(args, datas, device):
     new_datas = []
     for data in datas:
-        if args.neg == "ilow":
+        if args.neg == "inverse_low":
             a = to_dense_adj(data.low_edge_index)
             a[a==0] = -1
             a[a>0] = 0
@@ -111,6 +111,28 @@ def create_neg_mask_cuda_updated(args, datas, device):
             indices = graph.topk(k=300, largest=False)[1]
             data.neg_mask = torch.zeros(graph.shape[0], graph.shape[0]).to(device).scatter_(1, indices, 1)
             data.neg_mask = data.neg_mask.to(device)
+        new_datas.append(data)
+    return new_datas
+def create_neg_mask_updated(args, datas, device):
+    new_datas = []
+    for data in datas:
+        if args.neg == "inverse_low":
+            a = to_dense_adj(data.low_edge_index)
+            a[a==0] = -1
+            a[a>0] = 0
+            a = a * -1
+            data.neg_mask = a[0]
+        elif args.neg == "high":
+            a = to_dense_adj(data.high_edge_index)
+            data.neg_mask = a[0]
+        elif args.neg == "simple":
+            data.neg_mask = -1
+        elif args.neg == "global":
+            graph = data.x @ data.x.t()
+            graph[graph==0] = 10
+            indices = graph.topk(k=300, largest=False)[1]
+            data.neg_mask = torch.zeros(graph.shape[0], graph.shape[0]).scatter_(1, indices, 1)
+            data.neg_mask = data.neg_mask
         new_datas.append(data)
     return new_datas
 
@@ -143,6 +165,7 @@ def edge_create_updated(args, data, device):
             wgt = torch.tensor(wgt)
             low_edge_wgt, low_edge_idx = torch.topk(wgt, lk)
             remained_wgts, remained_idx = th_delete(wgt, low_edge_idx)
+            
             if len(remained_wgts) > hk:
                 high_edge_wgt, high_edge_idx = torch.topk(remained_wgts, hk,largest=False)
                 high_edge_idx = remained_idx[high_edge_idx]
@@ -425,9 +448,9 @@ def get_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, default = "cora", help='benchmark dataset : cora, citeseer, pubmed')
     parser.add_argument('--pre_eval', type=int, default = 50, help='number per epoch to evaluate GCL')
-    # parser.add_argument('--gnn', type=str, help='gcn, gat, fbgcn')
+    parser.add_argument('--hidden', type=int, default = 512, help='gcn, gat, fbgcn')
     parser.add_argument('--seed', type=int, default=42, help='random seed')
-    parser.add_argument('--intraview_negs' ,default="none")
+    parser.add_argument('--intraview_negs' ,default="none") # delete
     parser.add_argument('--preepochs' ,type=int, default = 500, help='pretraining epoch')
     parser.add_argument('--per_epoch' ,type=int, default = 50, help='graph update frequency')
     parser.add_argument('--pre_learning_rate',type=float, default = 0.001, help='pre training learning rate')
@@ -436,17 +459,18 @@ def get_arguments():
     parser.add_argument('--runs', type=int, default=10, help='number of distinct runs')
     parser.add_argument('--num_layer', type=int, default=2, help='number of layers')
     parser.add_argument('--device', type=int, default=1)
-    parser.add_argument('--edge', type=str, default="hard_ratio")
+    parser.add_argument('--edge', type=str, default="hard_ratio") # delete
     parser.add_argument('--low_k', type=float, default=0.2)
     parser.add_argument('--high_k', type=float, default=0.2)
-    parser.add_argument('--two_hop', action='store_true')
+    parser.add_argument('--infer_edges', action='store_true') # delete
     parser.add_argument('--combine_x', action='store_true')
-    parser.add_argument('--md', type=str, default = "union")
-    parser.add_argument('--mode', type=str, default = "known")
+    parser.add_argument('--md', type=str, default = "union") # delete
+    parser.add_argument('--mode', type=str, default = "known") # delete
     parser.add_argument('--neg', type=str, default = "simple")
     parser.add_argument('--split', type=str, default = "simple")
     parser.add_argument('--cluster_batch_size', type=int, default = 1)
     parser.add_argument('--num_parts', type=int, default = 200)
+    parser.add_argument('--eval', type=str, default = "acc")
     args, unknown = parser.parse_known_args()
     return args
 

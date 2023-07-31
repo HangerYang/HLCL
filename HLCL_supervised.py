@@ -61,7 +61,7 @@ def test(args, encoder_model, x, lp_edge_index, hp_edge_index, lp_edge_weight, h
         hp_edge_index = torch.cat((known_high_edge_index, hp_edge_index), dim=1)
         lp_edge_index = torch.cat((known_low_edge_index, lp_edge_index), dim=1)
     z, _, _ = encoder_model(args, x, lp_edge_index, hp_edge_index,lp_edge_weight, hp_edge_weight, edges=False)
-    result = LREvaluator()(z, y, split)
+    result = LREvaluator()(z, y, split, args.eval)
     return result
 
 def get_split_given(data, run, device):
@@ -85,13 +85,12 @@ pre_learning_rate = args.pre_learning_rate
 preepochs=args.preepochs
 neg_masks = []
 epoch = 0
-data.edge_index = add_self_loops(data.edge_index)[0]
 for run in range(args.runs):
-    split = get_split(data.x.size()[0], train_ratio=0.5, test_ratio=0.25)
-    split["train"] = split["train"].to(device)
+    # split = get_split(data.x.size()[0], train_ratio=0.5, test_ratio=0.25)
+    # split["train"] = split["train"].to(device)
     low_pass_graph = []
     high_pass_graph = []
-    # split = get_split_given(data, run, device)
+    split = get_split_given(data, run, device)
     unknown_edges, known_edges = split_edges(data.edge_index, split)
     unknown_edges = unknown_edges.t()
     for i in known_edges:
