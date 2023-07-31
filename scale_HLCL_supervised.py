@@ -101,7 +101,7 @@ for run in range(args.runs):
         low_pass_graph = []
         high_pass_graph = []
         if args.split == "simple":
-            split = get_split(subgraph.x.size()[0], train_ratio=0.48, test_ratio=0.2)
+            split = get_split(subgraph.x.size()[0], train_ratio=0.5, test_ratio=0.25)
             split["train"] = split["train"].to(device)
         else:
             split = get_split_given(subgraph, run, device)
@@ -172,17 +172,18 @@ for run in range(args.runs):
             if epoch % args.pre_eval == 0 and epoch >= args.pre_eval:
                 test_result = test(args, subgraphs, encoder_model, splits)
                 total_result.append((run, epoch, test_result["accuracy"]))
-    test_result = test(args, subgraphs, encoder_model, splits)
-    total_result.append((run, epoch, test_result["accuracy"]))
-    performance = {"epoch": [], "acc":[], "std":[]}
-    total_result = np.asarray(total_result)
-    for epoch in np.unique(total_result[:,1]):
-        performance['acc'].append(np.mean(total_result[np.where(total_result[:,1] == epoch), 2]))
-        performance['std'].append(np.std(total_result[np.where(total_result[:,1] == epoch), 2]))
-        performance['epoch'].append(epoch)
-    best_epoch = performance['epoch'][np.argmax(performance['acc'])]
-    best_std = performance['std'][np.argmax(performance['std'])]
-    best_acc = np.max(performance['acc'])
+test_result = test(args, subgraphs, encoder_model, splits)
+total_result.append((run, epoch, test_result["accuracy"]))
+# print(total_result)
+performance = {"epoch": [], "acc":[], "std":[]}
+total_result = np.asarray(total_result)
+for epoch in np.unique(total_result[:,1]):
+    performance['acc'].append(np.mean(total_result[np.where(total_result[:,1] == epoch), 2]))
+    performance['std'].append(np.std(total_result[np.where(total_result[:,1] == epoch), 2]))
+    performance['epoch'].append(epoch)
+best_epoch = performance['epoch'][np.argmax(performance['acc'])]
+best_std = performance['std'][np.argmax(performance['std'])]
+best_acc = np.max(performance['acc'])
 with open('./new_result/{}_HLCL_supervised_{}.csv'.format(args.dataset, args.edge), 'a+') as file:
     file.write('\n')
     file.write('Time: {}\n'.format(datetime.datetime.now()))
@@ -194,7 +195,7 @@ with open('./new_result/{}_HLCL_supervised_{}.csv'.format(args.dataset, args.edg
     file.write('Combine X = {}\n'.format(args.combine_x))
     file.write('EdgeRemoving Aug = {}\n'.format(args.aug1))
     file.write('FeatMasking Aug = {}\n'.format(args.aug2))
-    file.write('Negative Masks: {}\n'.format(args.neg))
+    file.write('Infer Edges: {}\n'.format(args.infer_edges))
     file.write('Num of Layers = {}\n'.format(args.num_layer))
     file.write('Split = {}\n'.format(args.split))
     file.write('(E):Mean Accuracy: {}, with Std: {}, at Epoch {}'.format(best_acc, best_std, best_epoch))

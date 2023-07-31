@@ -113,6 +113,7 @@ for run in range(args.runs):
 
 test_result = test(args, subgraphs, encoder_model)
 total_result.append((run, epoch, test_result["accuracy"]))
+# print(total_result)
 performance = {"epoch": [], "acc":[], "std":[]}
 total_result = np.asarray(total_result)
 for epoch in np.unique(total_result[:,1]):
