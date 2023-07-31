@@ -17,7 +17,7 @@ from sklearn.preprocessing import label_binarize
 from os import path
 import pandas as pd
 
-DATAPATH = "/home/hyang/HL_Contrast/data/"
+DATAPATH = "./data/"
 
 class NCDataset(object):
     def __init__(self, name, root=f'{DATAPATH}'):
@@ -212,7 +212,7 @@ def dataset_split(file_loc = './data/', dataset_name = 'cora', train_ratio=0.1, 
         dataset = load_nc_dataset(dataset_name)
         data = Data(x=dataset.graph["node_feat"], edge_index=dataset.graph["edge_index"], y=dataset.label, num_features = dataset.graph["node_feat"].shape[1])
     elif dataset_name in ["chameleon_filtered", "squirrel_filtered"]:
-        a = np.load("/home/hyang/HL_Contrast/data/{}.npz".format(dataset_name))
+        a = np.load("./data/{}.npz".format(dataset_name))
         data = Data(x = torch.tensor(a["node_features"]), edge_index = torch.tensor(a["edges"].T), y = torch.tensor(a["node_labels"]))
         data.train_mask = torch.tensor(a["train_masks"]).t()
         data.val_mask = torch.tensor(a["val_masks"]).t()
