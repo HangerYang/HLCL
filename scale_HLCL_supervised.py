@@ -101,7 +101,7 @@ for run in range(args.runs):
         low_pass_graph = []
         high_pass_graph = []
         if args.split == "simple":
-            split = get_split(subgraph.x.size()[0], train_ratio=0.48, test_ratio=0.2)
+            split = get_split(subgraph.x.size()[0], train_ratio=0.5, test_ratio=0.25)
             split["train"] = split["train"].to(device)
         else:
             split = get_split_given(subgraph, run, device)
@@ -194,7 +194,7 @@ with open('./new_result/{}_HLCL_supervised_{}.csv'.format(args.dataset, args.edg
     file.write('Combine X = {}\n'.format(args.combine_x))
     file.write('EdgeRemoving Aug = {}\n'.format(args.aug1))
     file.write('FeatMasking Aug = {}\n'.format(args.aug2))
-    file.write('Negative Masks: {}\n'.format(args.neg))
+    file.write('Infer Edges: {}\n'.format(args.infer_edges))
     file.write('Num of Layers = {}\n'.format(args.num_layer))
     file.write('Split = {}\n'.format(args.split))
     file.write('(E):Mean Accuracy: {}, with Std: {}, at Epoch {}'.format(best_acc, best_std, best_epoch))

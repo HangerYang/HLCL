@@ -158,7 +158,7 @@ def load_fb100_dataset(filename):
     A, metadata = load_fb100(filename)
     dataset = NCDataset(filename)
     edge_index = torch.tensor(np.array(A.nonzero()), dtype=torch.long)
-    metadata = metadata.astype(np.int)
+    metadata = metadata.astype(int)
     label = metadata[:, 1] - 1  # gender label, -1 means unlabeled
 
     # make features into one-hot encodings
