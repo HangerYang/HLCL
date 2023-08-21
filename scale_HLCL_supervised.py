@@ -14,7 +14,7 @@ from utility.data import dataset_split
 import datetime
 from HLCL.utils import get_arguments, split_edges,seed_everything, edge_create_updated, create_neg_mask_cuda_updated, create_neg_mask_updated
 import os
-from HLCL.models import Encoder_updated,HLCLConv, DualBranchContrast
+from HLCL.models import Encoder_updated, HLCLConv, DualBranchContrast
 from torch_geometric.utils import homophily
 from torch_geometric.loader import ClusterData, ClusterLoader
 
@@ -132,16 +132,25 @@ for run in range(args.runs):
         subgraph = create_neg_mask_cuda_updated(args, [subgraph],device)[0]
         subgraph = subgraph.to(device)
         neg_masks = []
+        pos_masks = []
         neg_sample=[]  
+        pos_sample=[]  
         for i in range(torch.unique(data.y).shape[0]):
             nongroup = torch.where(torch.logical_and(subgraph.y!=i, torch.tensor([k in split["train"] for k in torch.tensor(range(subgraph.num_nodes))]).to(device)))[0]
+            yes_group = torch.where(torch.logical_and(subgraph.y==i, torch.tensor([k in split["train"] for k in torch.tensor(range(subgraph.num_nodes))]).to(device)))[0]
             neg_mask = torch.zeros(subgraph.x.shape[0])
             neg_mask[nongroup] = 1.
             neg_masks.append(neg_mask.to(device))
+
+            pos_mask = torch.zeros(subgraph.x.shape[0])
+            pos_mask[yes_group] = 1.
+            pos_masks.append(pos_mask.to(device))
         for j in range(len(subgraph.y)):
             if j in split["train"]:
                 neg_sample.append(neg_masks[subgraph.y[j]])
+                pos_sample.append(pos_mask(subgraph.y[j]))
             else:
+                pos_sample.append(torch.zeros(subgraph.x.shape[0]).scatter_(0 ,torch.tensor(j), 1).to(device))
                 if args.neg == "simple":
                     neg_sample.append(torch.ones(subgraph.x.shape[0]).scatter_(0 ,torch.tensor(j), 0).to(device))
                 elif args.infer_edges:

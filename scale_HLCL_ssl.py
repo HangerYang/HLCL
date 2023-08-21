@@ -45,7 +45,7 @@ def test(args, subgraphs, encoder_model):
         z, _, _= encoder_model(args, subgraph, edges=False)
         z = z[right_idx]
         subgraph.y = subgraph.y[right_idx]
-        split = get_split(num_samples=z.size()[0], train_ratio=0.5, test_ratio=0.25)
+        split = get_split(num_samples=z.size()[0], train_ratio=0.1, test_ratio=0.8)
         result = LREvaluator()(z, subgraph.y, split, args.eval)
         results.append(result["accuracy"])
     result = np.mean(results)

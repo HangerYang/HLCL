@@ -142,7 +142,7 @@ def test(encoder_model, test_loader):
         h2 = h2[right_idx]
         z = torch.cat([h1, h2], dim=1)
         tg_batch.y = tg_batch.y[right_idx]
-        split = get_split(num_samples=z.size()[0], train_ratio=0.5, test_ratio=0.25)
+        split = get_split(num_samples=z.size()[0], train_ratio=0.1, test_ratio=0.8)
         result = LREvaluator()(z, tg_batch.y, split, args.eval)
     return result
 

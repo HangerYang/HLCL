@@ -128,11 +128,12 @@ class SameScaleSampler(Sampler):
     def __init__(self, *args, **kwargs):
         super(SameScaleSampler, self).__init__(*args, **kwargs)
 
-    def sample(self, anchor, sample, neg_mask = None, *args, **kwargs):
+    def sample(self, anchor, sample, pos_mask = None, neg_mask = None, *args, **kwargs):
         assert anchor.size(0) == sample.size(0)
         num_nodes = anchor.size(0)
         device = anchor.device
-        pos_mask = torch.eye(num_nodes, dtype=torch.float32, device=device)
+        if pos_mask is None:
+            pos_mask = torch.eye(num_nodes, dtype=torch.float32, device=device)
         if neg_mask is None:
             neg_mask = 1. - pos_mask
         return anchor, sample, pos_mask, neg_mask
@@ -150,12 +151,12 @@ class DualBranchContrast(torch.nn.Module):
         self.kwargs = kwargs
 
     def forward(self, h1=None, h2=None, g1=None, g2=None, batch=None, h3=None, h4=None,
-                extra_pos_mask=None, extra_neg_mask=None, neg_mask=None):
+                extra_pos_mask=None, extra_neg_mask=None, pos_mask=None, neg_mask=None):
         if not is_tensor(neg_mask):
             neg_mask = None
         if self.mode == 'L2L':
-            anchor1, sample1, pos_mask1, neg_mask1= self.sampler(anchor=h1, sample=h2, neg_mask = neg_mask)
-            anchor2, sample2, pos_mask2, neg_mask2= self.sampler(anchor=h2, sample=h1, neg_mask = neg_mask)
+            anchor1, sample1, pos_mask1, neg_mask1= self.sampler(anchor=h1, sample=h2, pos_mask = pos_mask, neg_mask = neg_mask)
+            anchor2, sample2, pos_mask2, neg_mask2= self.sampler(anchor=h2, sample=h1, pos_mask = pos_mask, neg_mask = neg_mask)
         l1 = self.loss(anchor=anchor1, sample=sample1, pos_mask=pos_mask1, neg_mask=neg_mask1, **self.kwargs)
         l2 = self.loss(anchor=anchor2, sample=sample2, pos_mask=pos_mask2, neg_mask=neg_mask2, **self.kwargs)
 
