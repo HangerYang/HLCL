@@ -356,59 +356,77 @@ def two_hop(data):
     data.edge_index = edge_index
     return data
 
+def representation_combine_supervised(args, z1, z2, zs1, zs2):
+    if args.combine_x:
+        return torch.cat((z1,z2),dim=1), z1, z2, (zs1+zs2)
+    else:
+        return z1, z1, z2, (zs1+zs2)
+    
+def res_combine_supervised(args, device, edge_index, low_k=None, high_k=None, low_x=None, high_x=None, low_zs=None, high_zs=None):
+    with torch.no_grad():
+        ret = representation_combine_supervised(args, low_x, high_x, low_zs, high_zs)
+        low_edges_0,low_edges_1, low_edge_weight_0, low_edge_weight_1 = edge_create(args, low_x, edge_index, high_k, low_k, device)
+        high_edges_0,high_edges_1, high_edge_weight_0, high_edge_weight_1 = edge_create(args, high_x, edge_index, high_k, low_k, device)
+        low_pass_edges = union(low_edges_0, high_edges_0)
+        high_pass_edges = union(low_edges_1, high_edges_1)
+        low_edge_weight = torch.ones(low_pass_edges.shape[1])
+        high_edge_weight = torch.ones(high_pass_edges.shape[1])
+    return ret, low_pass_edges, high_pass_edges, low_edge_weight, high_edge_weight
+
 def res_combine(args, device, edge_index, low_k=None, high_k=None, low_x=None, high_x=None):
     with torch.no_grad():
         ret = representation_combine(args, low_x, high_x)
-        if args.edge != "soft":
-            if args.md == "union":
-                low_edges_0,low_edges_1, low_edge_weight_0, low_edge_weight_1 = edge_create(args, low_x, edge_index, high_k, low_k, device)
-                high_edges_0,high_edges_1, high_edge_weight_0, high_edge_weight_1 = edge_create(args, high_x, edge_index, high_k, low_k, device)
-                low_pass_edges = union(low_edges_0, high_edges_0)
-                high_pass_edges = union(low_edges_1, high_edges_1)
-                low_edge_weight = torch.ones(low_pass_edges.shape[1])
-                high_edge_weight = torch.ones(high_pass_edges.shape[1])
-            elif args.md == "intersect":
-                low_edges_0,low_edges_1, low_edge_weight_0, low_edge_weight_1 = edge_create(args, low_x, edge_index, high_k, low_k, device)
-                high_edges_0,high_edges_1, high_edge_weight_0, high_edge_weight_1 = edge_create(args, high_x, edge_index, high_k, low_k, device)
-                low_pass_edges = intersect(low_edges_0, high_edges_0)
-                high_pass_edges = intersect(low_edges_1, high_edges_1)
-                low_edge_weight = torch.ones(low_pass_edges.shape[1])
-                high_edge_weight = torch.ones(high_pass_edges.shape[1])
-            elif args.md == "low":
-                low_edges_0,low_edges_1, low_edge_weight_0, low_edge_weight_1 = edge_create(args, low_x, edge_index, high_k, low_k, device)
-                low_pass_edges = low_edges_0
-                high_pass_edges = low_edges_1
-                low_edge_weight = torch.ones(low_pass_edges.shape[1])
-                high_edge_weight = torch.ones(high_pass_edges.shape[1])
-            elif args.md == "high":
-                high_edges_0,high_edges_1, high_edge_weight_0, high_edge_weight_1 = edge_create(args, high_x, edge_index, high_k, low_k, device)
-                low_pass_edges = high_edges_0
-                high_pass_edges = high_edges_1
-                low_edge_weight = torch.ones(low_pass_edges.shape[1])
-                high_edge_weight = torch.ones(high_pass_edges.shape[1])
-        else:
-            if args.md == "union":
-                low_graph, adj_idx = edge_create(args, low_x, edge_index, high_k, low_k, device)
-                high_graph, adj_idx = edge_create(args, high_x, edge_index, high_k, low_k, device)
-                edge, weight = soft_union(low_graph, high_graph, adj_idx)
-                low_pass_edges = edge[0]
-                high_pass_edges = edge[1]
+        # if args.edge != "soft":
+        # if args.md == "union":
+        low_edges_0,low_edges_1, low_edge_weight_0, low_edge_weight_1 = edge_create(args, low_x, edge_index, high_k, low_k, device)
+        high_edges_0,high_edges_1, high_edge_weight_0, high_edge_weight_1 = edge_create(args, high_x, edge_index, high_k, low_k, device)
+        low_pass_edges = union(low_edges_0, high_edges_0)
+        high_pass_edges = union(low_edges_1, high_edges_1)
+        low_edge_weight = torch.ones(low_pass_edges.shape[1])
+        high_edge_weight = torch.ones(high_pass_edges.shape[1])
+    return ret, low_pass_edges, high_pass_edges, low_edge_weight, high_edge_weight
+        # elif args.md == "intersect":
+        #     low_edges_0,low_edges_1, low_edge_weight_0, low_edge_weight_1 = edge_create(args, low_x, edge_index, high_k, low_k, device)
+        #     high_edges_0,high_edges_1, high_edge_weight_0, high_edge_weight_1 = edge_create(args, high_x, edge_index, high_k, low_k, device)
+        #     low_pass_edges = intersect(low_edges_0, high_edges_0)
+        #     high_pass_edges = intersect(low_edges_1, high_edges_1)
+        #     low_edge_weight = torch.ones(low_pass_edges.shape[1])
+        #     high_edge_weight = torch.ones(high_pass_edges.shape[1])
+        # elif args.md == "low":
+        #     low_edges_0,low_edges_1, low_edge_weight_0, low_edge_weight_1 = edge_create(args, low_x, edge_index, high_k, low_k, device)
+        #     low_pass_edges = low_edges_0
+        #     high_pass_edges = low_edges_1
+        #     low_edge_weight = torch.ones(low_pass_edges.shape[1])
+        #     high_edge_weight = torch.ones(high_pass_edges.shape[1])
+        # elif args.md == "high":
+        #     high_edges_0,high_edges_1, high_edge_weight_0, high_edge_weight_1 = edge_create(args, high_x, edge_index, high_k, low_k, device)
+        #     low_pass_edges = high_edges_0
+        #     high_pass_edges = high_edges_1
+        #     low_edge_weight = torch.ones(low_pass_edges.shape[1])
+        #     high_edge_weight = torch.ones(high_pass_edges.shape[1])
+    # else:
+    #     if args.md == "union":
+    #         low_graph, adj_idx = edge_create(args, low_x, edge_index, high_k, low_k, device)
+    #         high_graph, adj_idx = edge_create(args, high_x, edge_index, high_k, low_k, device)
+    #         edge, weight = soft_union(low_graph, high_graph, adj_idx)
+    #         low_pass_edges = edge[0]
+    #         high_pass_edges = edge[1]
 
-                low_edge_weight = weight[0]
-                high_edge_weight = weight[1]
+    #         low_edge_weight = weight[0]
+    #         high_edge_weight = weight[1]
 
-            elif args.md == "low":
-                graph, adj_idx = edge_create(args,low_x, edge_index)
-                low_graph = F.normalize(graph)
-                high_graph = F.normalize(adj_idx - low_graph)
-                low_pass_edges, low_edge_weight = dense_to_sparse(low_graph)
-                high_pass_edges, high_edge_weight = dense_to_sparse(high_graph)
-            elif args.md == "high":
-                graph, adj_idx = edge_create(args,high_x, edge_index)
-                low_graph = F.normalize(graph)
-                high_graph = F.normalize(adj_idx - low_graph)
-                low_pass_edges, low_edge_weight = dense_to_sparse(low_graph)
-                high_pass_edges, high_edge_weight = dense_to_sparse(high_graph)
+    #     elif args.md == "low":
+    #         graph, adj_idx = edge_create(args,low_x, edge_index)
+    #         low_graph = F.normalize(graph)
+    #         high_graph = F.normalize(adj_idx - low_graph)
+    #         low_pass_edges, low_edge_weight = dense_to_sparse(low_graph)
+    #         high_pass_edges, high_edge_weight = dense_to_sparse(high_graph)
+    #     elif args.md == "high":
+    #         graph, adj_idx = edge_create(args,high_x, edge_index)
+    #         low_graph = F.normalize(graph)
+    #         high_graph = F.normalize(adj_idx - low_graph)
+    #         low_pass_edges, low_edge_weight = dense_to_sparse(low_graph)
+    #         high_pass_edges, high_edge_weight = dense_to_sparse(high_graph)
     return ret, low_pass_edges, high_pass_edges, low_edge_weight, high_edge_weight
 
         
@@ -418,6 +436,8 @@ def representation_combine(args, z1, z2):
         return torch.cat((z1,z2),dim=1), z1, z2
     else:
         return z1, z1, z2
+    
+
 
 def split_edges(edge_index, split):
     unknown_edges = []

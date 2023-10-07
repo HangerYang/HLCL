@@ -3,18 +3,18 @@ from torch_geometric.nn import MessagePassing
 from torch.nn import Linear, Parameter
 from torch_geometric.utils import get_laplacian,add_self_loops, degree
 from torch_geometric.nn.conv.gcn_conv import gcn_norm
-from HLCL.utils import res_combine, representation_combine, union, edge_create_updated, edge_create
+from HLCL.utils import res_combine, representation_combine, union, edge_create_updated, edge_create,representation_combine_supervised, res_combine_supervised
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
 from GCL.losses import Loss
 from abc import ABC, abstractmethod
 from torch import is_tensor
+
 class Mix_Pass(MessagePassing):
     def __init__(self, in_channels, out_channels):
         super().__init__(aggr='add')  # "Add" aggregation (Step 5).
         self.lin = Linear(in_channels, out_channels, bias=False)
         self.bias = Parameter(torch.Tensor(out_channels))
-
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -44,8 +44,68 @@ class Mix_Pass(MessagePassing):
         return out
     def message(self, x_j, edge_weight=None):
         return edge_weight.view(-1, 1) * x_j
-        
+    
+class HLCLConv_supervised(torch.nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim, activation, num_layers, dropout=0.2):
+        super(HLCLConv_supervised, self).__init__()
+        self.dropout = dropout
+        self.activation = activation()
+        self.num_layers = num_layers
+        self.log_softmax = torch.nn.LogSoftmax(dim=1)
+        self.layers = torch.nn.ModuleList()
+        self.layers.append(Mix_Pass(input_dim, hidden_dim))
+        for _ in range(self.num_layers - 2):
+            self.layers.append(Mix_Pass(hidden_dim, hidden_dim))
+        self.layers.append(Mix_Pass(hidden_dim, output_dim))
 
+    def forward(self, x, edge_index, edge_weight=None, high_pass=False):
+        z = x
+        z = F.dropout(z, p=self.dropout, training=self.training)
+        for i, conv in enumerate(self.layers):
+            if i != self.num_layers - 1:
+                z = conv(z, edge_index, edge_weight, high_pass)
+                z = self.activation(z)
+                z = F.dropout(z, p=self.dropout, training=self.training)
+        zs = conv(z, edge_index, edge_weight, high_pass)
+        zs = self.log_softmax(zs)
+        return z, zs
+    def reset_parameters(self):
+        for hlcl in self.layers:
+            hlcl.reset_parameters()   
+
+class Encoder_supervised(torch.nn.Module):
+    def __init__(self, encoder, augmentor, hidden_dim, proj_dim):
+        super(Encoder_supervised, self).__init__()
+        self.encoder = encoder 
+        self.augmentor = augmentor
+
+        self.fc1 = torch.nn.Linear(hidden_dim, proj_dim)
+        self.fc2 = torch.nn.Linear(proj_dim, hidden_dim)
+
+    def forward(self, args, data, edges = False, device=None):
+        aug1, aug2 = self.augmentor
+        x1, edge_index1, edge_weight1 = aug1(data.x, data.low_edge_index, data.low_edge_weight)
+        x2, edge_index2, edge_weight2 = aug2(data.x, data.high_edge_index, data.high_edge_weight)
+        # edge_index0 = add_edge(edge_index, 0.5)
+        # z = self.encoder(x, edge_index0, edge_weight0)
+        z1, zs1 = self.encoder(x1, edge_index1, edge_weight1)
+        z2, zs2 = self.encoder(x2, edge_index2, edge_weight2, high_pass = True)
+        if edges:
+            low_edges_0,low_edges_1, _, _ = edge_create(args, z1, data.edge_index, args.high_k, args.low_k, device)
+            high_edges_0,high_edges_1, _, _ = edge_create(args, z2, data.edge_index, args.high_k, args.low_k, device)
+            data.low_edge_index = union(low_edges_0, high_edges_0).to(device)
+            data.high_edge_index = union(low_edges_1, high_edges_1).to(device)
+            data.low_edge_weight = torch.ones(data.low_edge_index.shape[1]).to(device)
+            data.high_edge_weight = torch.ones(data.high_edge_index.shape[1]).to(device)
+            # return res_combine(args, device, origin_edge_index, args.low_k, args.high_k, z1, z2)
+            return representation_combine_supervised(args, z1, z2, zs1, zs2), data
+        else:
+            return representation_combine_supervised(args, z1, z2, zs1, zs2)
+        
+    def project(self, z: torch.Tensor) -> torch.Tensor:
+        z = F.elu(self.fc1(z))
+        return self.fc2(z)
+    
 class HLCLConv(torch.nn.Module):
     def __init__(self, input_dim, hidden_dim, activation, num_layers, dropout=0.2):
         super(HLCLConv, self).__init__()
@@ -69,6 +129,7 @@ class HLCLConv(torch.nn.Module):
     def reset_parameters(self):
         for hlcl in self.layers:
             hlcl.reset_parameters()
+
 class Encoder(torch.nn.Module):
     def __init__(self, encoder, augmentor, hidden_dim, proj_dim):
         super(Encoder, self).__init__()
@@ -91,9 +152,11 @@ class Encoder(torch.nn.Module):
             return res_combine(args, device, origin_edge_index, args.low_k, args.high_k, z1, z2)
         else:
             return representation_combine(args, z1, z2)
+        
     def project(self, z: torch.Tensor) -> torch.Tensor:
         z = F.elu(self.fc1(z))
         return self.fc2(z)
+    
 class Sampler(ABC):
     def __init__(self, intraview_negs="none"):
         self.intraview_negs = intraview_negs

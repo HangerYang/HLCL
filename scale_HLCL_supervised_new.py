@@ -9,35 +9,38 @@ from torch.optim import Adam
 from GCL.eval import get_split
 from Evaluator import LREvaluator
 import numpy as np
+from sklearn.metrics import accuracy_score
 
 from utility.data import dataset_split
 import datetime
 from HLCL.utils import get_arguments, split_edges,seed_everything, edge_create_updated, create_neg_mask_cuda_updated, create_neg_mask_updated
 import os
-from HLCL.models import Encoder_updated, HLCLConv, DualBranchContrast
+from HLCL.models import Encoder_supervised, HLCLConv_supervised, DualBranchContrast
 from torch_geometric.utils import homophily
 from torch_geometric.loader import ClusterData, ClusterLoader
 
-def train(args, subgraphs, encoder_model, contrast_model, optimizer, device, edges):
+def train(args, subgraphs, encoder_model, contrast_model, optimizer, device, edges, splits):
     encoder_model.train()
     new_subgraphs = []
     total_loss = 0
-    for subgraph in subgraphs:
+    for i, subgraph in enumerate(subgraphs):
         optimizer.zero_grad()
         if edges and args.infer_edges:
-            (z, z1, z2), new_graph = encoder_model(args, subgraph, edges=True, device = device)
+            (z, z1, z2, zs), new_graph = encoder_model(args, subgraph, edges=True, device = device)
             new_graph.low_edge_index = torch.cat((new_graph.known_low_edge_index, new_graph.low_edge_index), dim=1)
             new_graph.high_edge_index = torch.cat((new_graph.known_high_edge_index, new_graph.high_edge_index), dim=1)
             new_graph.low_edge_weight = torch.cat((new_graph.known_low_edge_weight, new_graph.low_edge_weight))
             new_graph.high_edge_weight = torch.cat((new_graph.known_high_edge_weight, new_graph.high_edge_weight))
             new_subgraphs.append(new_graph)
         elif edges:
-            (z, z1, z2), new_graph = encoder_model(args, subgraph, edges=True, device = device)
+            (z, z1, z2, zs), new_graph = encoder_model(args, subgraph, edges=True, device = device)
             new_subgraphs.append(new_graph)
         else:
-            (z, z1, z2) = encoder_model(args, subgraph, edges=False)
+            (z, z1, z2, zs) = encoder_model(args, subgraph, edges=False)
         h1, h2 = [encoder_model.project(x) for x in [z1, z2]]
-        loss = contrast_model(h1, h2, neg_mask=subgraph.neg_mask)
+        loss_unsupervised = contrast_model(h1, h2, neg_mask=subgraph.neg_mask, pos_mask=subgraph.pos_mask)
+        loss_supervised = F.nll_loss(zs[splits[i]['train']], subgraph.y[splits[i]['train']])
+        loss =  loss_unsupervised  + loss_supervised 
         loss.backward()
         optimizer.step()
         total_loss = total_loss + loss
@@ -53,13 +56,17 @@ def test(args, subgraphs, encoder_model, splits):
     for i, subgraph in enumerate(subgraphs):
         subgraph.y = torch.flatten(subgraph.y)
         right_idx = torch.where(subgraph.y>-1)[0]
-        z, _, _= encoder_model(args, subgraph, edges=False)
-        z = z[right_idx]
+        _, _, _, zs = encoder_model(args, subgraph, edges=False)
+        zs = zs[right_idx]
         subgraph.y = subgraph.y[right_idx]
+        y_pred = zs[splits[i]['train']].argmax(-1).detach().cpu().numpy()
+        y_test = subgraph.y[splits[i]['train']].detach().cpu().numpy()
+        test_score = accuracy_score(y_test, y_pred)
         # split = get_split(num_samples=z.size()[0], train_ratio=0.5, test_ratio=0.25)
-        result = LREvaluator()(z, subgraph.y, splits[i], args.eval)
-        results.append(result["accuracy"])
+        # result = LREvaluator()(zs, subgraph.y, splits[i], args.eval)
+        results.append(test_score)
     result = np.mean(results)
+    print("best test result: {}".format(result))
     return {
             'accuracy': result
         }
@@ -89,8 +96,8 @@ def get_split_given(data, run, device):
 for run in range(args.runs):
     aug1 = A.Compose([A.EdgeRemoving(pe=args.aug1), A.FeatureMasking(pf=args.aug2)])
     aug2 = A.Compose([A.EdgeRemoving(pe=args.aug1), A.FeatureMasking(pf=args.aug2)])
-    gconv = HLCLConv(input_dim=data.num_features, hidden_dim=hidden_dim, activation=torch.nn.ReLU, num_layers=args.num_layer).to(device)
-    encoder_model = Encoder_updated(encoder=gconv, augmentor=(aug1, aug2), hidden_dim=hidden_dim, proj_dim=hidden_dim).to(device)
+    gconv = HLCLConv_supervised(input_dim=data.num_features, hidden_dim=hidden_dim, output_dim=data.num_classes, activation=torch.nn.ReLU, num_layers=args.num_layer).to(device)
+    encoder_model = Encoder_supervised(encoder=gconv, augmentor=(aug1, aug2), hidden_dim=hidden_dim, proj_dim=hidden_dim).to(device)
     contrast_model = DualBranchContrast(loss=L.InfoNCE(tau=0.2), mode='L2L', intraview_negs=args.intraview_negs).to(device)
     optimizer = Adam(encoder_model.parameters(), lr=pre_learning_rate)
     cluster_data = ClusterData(data, num_parts=args.num_parts)
@@ -148,7 +155,7 @@ for run in range(args.runs):
         for j in range(len(subgraph.y)):
             if j in split["train"]:
                 neg_sample.append(neg_masks[subgraph.y[j]])
-                pos_sample.append(pos_mask(subgraph.y[j]))
+                pos_sample.append(pos_masks[subgraph.y[j]])
             else:
                 pos_sample.append(torch.zeros(subgraph.x.shape[0]).scatter_(0 ,torch.tensor(j), 1).to(device))
                 if args.neg == "simple":
@@ -156,6 +163,7 @@ for run in range(args.runs):
                 elif args.infer_edges:
                     neg_sample.append(subgraph.neg_mask[j])
         subgraph.neg_mask = torch.stack(neg_sample).to(device)
+        subgraph.pos_mask = torch.stack(pos_sample).to(device)
         subgraphs.append(subgraph)
     
     
@@ -163,7 +171,7 @@ for run in range(args.runs):
     with tqdm(total=preepochs, desc='(T)') as pbar:
         for epoch in range(preepochs):
             if epoch % args.per_epoch == 0 and epoch >= args.per_epoch:
-                loss, subgraphs = train(args, subgraphs, encoder_model, contrast_model, optimizer, device, edges=True)
+                loss, subgraphs = train(args, subgraphs, encoder_model, contrast_model, optimizer, device, edges=True, splits=splits)
                 # print(homophily(data.low_edge_index,data.y))
                 # print(homophily(data.high_edge_index,data.y))
 
@@ -175,7 +183,7 @@ for run in range(args.runs):
                 #         else:
                 #             neg_sample.append(data.neg_mask[j])
             else:
-                loss = train(args, subgraphs, encoder_model, contrast_model, optimizer, device, edges=False)
+                loss = train(args, subgraphs, encoder_model, contrast_model, optimizer, device, edges=False, splits=splits)
             pbar.set_postfix({'loss': loss})
             pbar.update()
             if epoch % args.pre_eval == 0 and epoch >= args.pre_eval:
@@ -193,18 +201,18 @@ for epoch in np.unique(total_result[:,1]):
 best_epoch = performance['epoch'][np.argmax(performance['acc'])]
 best_std = performance['std'][np.argmax(performance['std'])]
 best_acc = np.max(performance['acc'])
-with open('./new_result/{}_HLCL_supervised_{}.csv'.format(args.dataset, args.edge), 'a+') as file:
-    file.write('\n')
-    file.write('Time: {}\n'.format(datetime.datetime.now()))
-    file.write('pre_learning_rate = {}\n'.format(pre_learning_rate))
-    file.write('Graph Update Frequency = {}\n'.format(args.per_epoch))
-    file.write('Low K = {}\n'.format(args.low_k))
-    file.write('High K = {}\n'.format(args.high_k))
-    file.write('Edge Creation = {}\n'.format(args.md))
-    file.write('Combine X = {}\n'.format(args.combine_x))
-    file.write('EdgeRemoving Aug = {}\n'.format(args.aug1))
-    file.write('FeatMasking Aug = {}\n'.format(args.aug2))
-    file.write('Infer Edges: {}\n'.format(args.infer_edges))
-    file.write('Num of Layers = {}\n'.format(args.num_layer))
-    file.write('Split = {}\n'.format(args.split))
-    file.write('(E):Mean Accuracy: {}, with Std: {}, at Epoch {}'.format(best_acc, best_std, best_epoch))
+# with open('./new_result/{}_HLCL_supervised_{}.csv'.format(args.dataset, args.edge), 'a+') as file:
+#     file.write('\n')
+#     file.write('Time: {}\n'.format(datetime.datetime.now()))
+#     file.write('pre_learning_rate = {}\n'.format(pre_learning_rate))
+#     file.write('Graph Update Frequency = {}\n'.format(args.per_epoch))
+#     file.write('Low K = {}\n'.format(args.low_k))
+#     file.write('High K = {}\n'.format(args.high_k))
+#     file.write('Edge Creation = {}\n'.format(args.md))
+#     file.write('Combine X = {}\n'.format(args.combine_x))
+#     file.write('EdgeRemoving Aug = {}\n'.format(args.aug1))
+#     file.write('FeatMasking Aug = {}\n'.format(args.aug2))
+#     file.write('Infer Edges: {}\n'.format(args.infer_edges))
+#     file.write('Num of Layers = {}\n'.format(args.num_layer))
+#     file.write('Split = {}\n'.format(args.split))
+#     file.write('(E):Mean Accuracy: {}, with Std: {}, at Epoch {}'.format(best_acc, best_std, best_epoch))
