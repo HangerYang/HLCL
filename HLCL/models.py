@@ -1,9 +1,9 @@
 import torch
 from torch_geometric.nn import MessagePassing
 from torch.nn import Linear, Parameter
-from torch_geometric.utils import get_laplacian,add_self_loops, degree
+from torch_geometric.utils import get_laplacian,add_self_loops, degree, homophily
 from torch_geometric.nn.conv.gcn_conv import gcn_norm
-from HLCL.utils import res_combine, representation_combine, union, edge_create_updated, edge_create,representation_combine_supervised, res_combine_supervised
+from HLCL.utils import res_combine, representation_combine, union, intersect, edge_create_,representation_combine_supervised, res_combine_supervised
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
 from GCL.losses import Loss
@@ -62,6 +62,9 @@ class HLCLConv_supervised(torch.nn.Module):
         z = x
         z = F.dropout(z, p=self.dropout, training=self.training)
         for i, conv in enumerate(self.layers):
+            # print(i)
+            # print(conv.lin.shape)
+            # print(conv.out_channels)
             if i != self.num_layers - 1:
                 z = conv(z, edge_index, edge_weight, high_pass)
                 z = self.activation(z)
@@ -130,32 +133,32 @@ class HLCLConv(torch.nn.Module):
         for hlcl in self.layers:
             hlcl.reset_parameters()
 
-class Encoder(torch.nn.Module):
-    def __init__(self, encoder, augmentor, hidden_dim, proj_dim):
-        super(Encoder, self).__init__()
-        self.encoder = encoder 
-        self.augmentor = augmentor
+# class Encoder(torch.nn.Module):
+#     def __init__(self, encoder, augmentor, hidden_dim, proj_dim):
+#         super(Encoder, self).__init__()
+#         self.encoder = encoder 
+#         self.augmentor = augmentor
 
-        self.fc1 = torch.nn.Linear(hidden_dim, proj_dim)
-        self.fc2 = torch.nn.Linear(proj_dim, hidden_dim)
+#         self.fc1 = torch.nn.Linear(hidden_dim, proj_dim)
+#         self.fc2 = torch.nn.Linear(proj_dim, hidden_dim)
 
-    def forward(self, args, x, lp_edge_index, hp_edge_index, lp_edge_weight, hp_edge_weight, origin_edge_index = None, edges = False, device=None):
-        aug1, aug2 = self.augmentor
-        x1, edge_index1, edge_weight1 = aug1(x, lp_edge_index, lp_edge_weight)
-        x2, edge_index2, edge_weight2 = aug2(x, hp_edge_index, hp_edge_weight)
-        # edge_index0 = add_edge(edge_index, 0.5)
-        # z = self.encoder(x, edge_index0, edge_weight0)
-        z1 = self.encoder(x1, edge_index1, edge_weight1)
-        z2 = self.encoder(x2, edge_index2, edge_weight2, high_pass = True)
+#     def forward(self, args, x, lp_edge_index, hp_edge_index, lp_edge_weight, hp_edge_weight, origin_edge_index = None, edges = False, device=None):
+#         aug1, aug2 = self.augmentor
+#         x1, edge_index1, edge_weight1 = aug1(x, lp_edge_index, lp_edge_weight)
+#         x2, edge_index2, edge_weight2 = aug2(x, hp_edge_index, hp_edge_weight)
+#         # edge_index0 = add_edge(edge_index, 0.5)
+#         # z = self.encoder(x, edge_index0, edge_weight0)
+#         z1 = self.encoder(x1, edge_index1, edge_weight1)
+#         z2 = self.encoder(x2, edge_index2, edge_weight2, high_pass = True)
 
-        if edges:
-            return res_combine(args, device, origin_edge_index, args.low_k, args.high_k, z1, z2)
-        else:
-            return representation_combine(args, z1, z2)
+#         if edges:
+#             return res_combine(args, device, origin_edge_index, args.low_k, args.high_k, z1, z2)
+#         else:
+#             return representation_combine(args, z1, z2)
         
-    def project(self, z: torch.Tensor) -> torch.Tensor:
-        z = F.elu(self.fc1(z))
-        return self.fc2(z)
+#     def project(self, z: torch.Tensor) -> torch.Tensor:
+#         z = F.elu(self.fc1(z))
+#         return self.fc2(z)
     
 class Sampler(ABC):
     def __init__(self, intraview_negs="none"):
@@ -225,9 +228,9 @@ class DualBranchContrast(torch.nn.Module):
 
         return (l1 + l2) * 0.5
     
-class Encoder_updated(torch.nn.Module):
+class Encoder(torch.nn.Module):
     def __init__(self, encoder, augmentor, hidden_dim, proj_dim):
-        super(Encoder_updated, self).__init__()
+        super(Encoder, self).__init__()
         self.encoder = encoder 
         self.augmentor = augmentor
 
@@ -236,24 +239,55 @@ class Encoder_updated(torch.nn.Module):
 
     def forward(self, args, data, edges = False, device=None):
         aug1, aug2 = self.augmentor
-        x1, edge_index1, edge_weight1 = aug1(data.x, data.low_edge_index, data.low_edge_weight)
-        x2, edge_index2, edge_weight2 = aug2(data.x, data.high_edge_index, data.high_edge_weight)
+        x1, edge_index1, edge_weight1 = aug1(data.x, data.low_edge_index, data.edge_weight)
+        x2, edge_index2, edge_weight2 = aug2(data.x, data.high_edge_index, data.edge_weight)
         # edge_index0 = add_edge(edge_index, 0.5)
         # z = self.encoder(x, edge_index0, edge_weight0)
         z1 = self.encoder(x1, edge_index1, edge_weight1)
-        z2 = self.encoder(x2, edge_index2, edge_weight2, high_pass = True)
-
+        z2 = self.encoder(x2, edge_index2, edge_weight2,high_pass=True)
+        z = torch.cat((z1,z2),dim=1)
         if edges:
-            low_edges_0,low_edges_1, _, _ = edge_create(args, z1, data.edge_index, args.high_k, args.low_k, device)
-            high_edges_0,high_edges_1, _, _ = edge_create(args, z2, data.edge_index, args.high_k, args.low_k, device)
-            data.low_edge_index = union(low_edges_0, high_edges_0).to(device)
-            data.high_edge_index = union(low_edges_1, high_edges_1).to(device)
+            if args.infer_combine_x:
+                low_edges, high_edges, _, _ = edge_create_(args, z, data.edge_index, device)
+            else:
+                low_edges, high_edges, _, _ = edge_create_(args, z1, data.edge_index, device)
+            data.low_edge_index = low_edges
+            data.high_edge_index = high_edges
             data.low_edge_weight = torch.ones(data.low_edge_index.shape[1]).to(device)
             data.high_edge_weight = torch.ones(data.high_edge_index.shape[1]).to(device)
+            # low_edges_0,low_edges_1, _, _ = edge_create_(args, z1, data.low_edge_index, device)
+            # high_edges_0,high_edges_1, _, _ = edge_create_(args, z2, data.high_edge_index, device)
+            # data.low_edge_index = union(low_edges_0, high_edges_0).to(device)
+            # data.high_edge_index = union(low_edges_1, high_edges_1).to(device)
+            # data.low_edge_weight = torch.ones(data.low_edge_index.shape[1]).to(device)
+            # data.high_edge_weight = torch.ones(data.high_edge_index.shape[1]).to(device)
             # return res_combine(args, device, origin_edge_index, args.low_k, args.high_k, z1, z2)
             return representation_combine(args, z1, z2), data
         else:
             return representation_combine(args, z1, z2)
+    def project(self, z: torch.Tensor) -> torch.Tensor:
+        z = F.elu(self.fc1(z))
+        return self.fc2(z)
+
+
+
+class SepEncoder(torch.nn.Module):
+    def __init__(self, encoder, augmentor, hidden_dim, proj_dim, high_pass=False):
+        super(SepEncoder, self).__init__()
+        self.encoder = encoder 
+        self.augmentor = augmentor
+        self.fc1 = torch.nn.Linear(hidden_dim, proj_dim)
+        self.fc2 = torch.nn.Linear(proj_dim, hidden_dim)
+        self.high_pass = high_pass
+
+    def forward(self, data):
+        aug1, aug2 = self.augmentor
+        if self.high_pass:
+            x, edge_index, edge_weight = aug1(data.x, data.high_edge_index, data.edge_weight)
+        else:
+            x, edge_index, edge_weight = aug2(data.x, data.low_edge_index, data.edge_weight)
+        z = self.encoder(x, edge_index, edge_weight,high_pass=self.high_pass)
+        return z
     def project(self, z: torch.Tensor) -> torch.Tensor:
         z = F.elu(self.fc1(z))
         return self.fc2(z)

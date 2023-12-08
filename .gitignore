@@ -1,10 +1,2 @@
+organizing/*
 data/*
-dataset/*
-Non-Homophily-Large-Scale/data/*
-results/*
-old_results/*
-*.sh
-*.csv
-*.pyc
-utility/__pycache__/*
-HLCL/__pycache__/*
