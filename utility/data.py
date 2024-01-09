@@ -195,7 +195,7 @@ def load_nc_dataset(dataname, sub_dataname=''):
     print('mission complete')
     return dataset
 
-def dataset_split(file_loc = './data/', dataset_name = 'cora', train_ratio=0.1, val_ratio=0.1, test_ratio=0.8):
+def dataset_split(file_loc = './data/', dataset_name = 'cora', train_ratio=0.1, val_ratio=0.1, test_ratio=0.8, self_loop=True):
     if dataset_name in ['cora', 'citeseer', 'pubmed']:
         dataset = Planetoid(root=file_loc+dataset_name, name=dataset_name, transform=T.NormalizeFeatures())
     elif dataset_name in ['cornell', 'texas', 'wisconsin']: 
@@ -234,8 +234,8 @@ def dataset_split(file_loc = './data/', dataset_name = 'cora', train_ratio=0.1, 
     #         data.test_mask = np.repeat(data.test_mask[np.newaxis], 10, axis = 0)
     # else:
         # data = train_test_split_nodes(data, train_ratio=train_ratio, val_ratio=val_ratio, test_ratio=test_ratio)
-    # 
-    data.edge_index, _= add_self_loops(data.edge_index)
+    if self_loop:
+        data.edge_index, _= add_self_loops(data.edge_index)
     return data
 
 # def build_graph(dataset,train_ratio=0.1):

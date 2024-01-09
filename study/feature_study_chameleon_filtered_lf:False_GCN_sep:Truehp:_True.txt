@@ -1,0 +1,22 @@
+SAME 
+Ratio: 0.1, Test: 0.3624 
+Ratio: 0.2, Test: 0.3708 
+Ratio: 0.3, Test: 0.3118 
+Ratio: 0.4, Test: 0.2837 
+Ratio: 0.5, Test: 0.2191 
+Ratio: 0.6, Test: 0.2219 
+Ratio: 0.7, Test: 0.2640 
+Ratio: 0.8, Test: 0.2697 
+Ratio: 0.9, Test: 0.2528 
+Ratio: 1.0, Test: 0.2949 
+DIFF 
+Ratio: 0.1, Test: 0.4775 
+Ratio: 0.2, Test: 0.5028 
+Ratio: 0.3, Test: 0.3792 
+Ratio: 0.4, Test: 0.3315 
+Ratio: 0.5, Test: 0.2556 
+Ratio: 0.6, Test: 0.2275 
+Ratio: 0.7, Test: 0.2612 
+Ratio: 0.8, Test: 0.2753 
+Ratio: 0.9, Test: 0.2921 
+Ratio: 1.0, Test: 0.3258 

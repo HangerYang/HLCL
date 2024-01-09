@@ -22,7 +22,7 @@ class Mix_Pass(MessagePassing):
         self.bias.data.zero_()
     def forward(self, x, edge_index, edge_weight = None, high_pass = False):
         if high_pass:
-            edge_index, edge_weight = add_self_loops(edge_index, edge_weight, num_nodes=x.size(0))
+            # edge_index, edge_weight = add_self_loops(edge_index, edge_weight, num_nodes=x.size(0))
             edge_index, edge_weight = get_laplacian(edge_index, edge_weight, normalization="sym")
             
             x = self.lin(x)
@@ -31,7 +31,7 @@ class Mix_Pass(MessagePassing):
         else:
             edge_index, edge_weight = add_self_loops(edge_index, edge_weight, num_nodes=x.size(0))
             # edge_index, edge_weight = get_laplacian(edge_index, edge_weight, normalization="sym")
-            edge_index, edge_weight = gcn_norm(edge_index, edge_weight,x.size(0), False, False)
+            edge_index, edge_weight = gcn_norm(edge_index = edge_index, edge_weight = edge_weight,num_nodes = x.size(0), improved = False, add_self_loops = False)
             # Step 2: Linearly transform node feature matrix.
             x = self.lin(x)
 
@@ -46,8 +46,31 @@ class Mix_Pass(MessagePassing):
         return edge_weight.view(-1, 1) * x_j
         
 
-class HLCLConv(torch.nn.Module):
-    def __init__(self, input_dim, hidden_dim, activation, num_layers, dropout=0.2):
+# class HLCLConv(torch.nn.Module): # change not applied to the model yet
+#     def __init__(self, input_dim, hidden_dim, output_dim, activation=torch.nn.ReLU, num_layers=2, dropout=0.2):
+#         super(HLCLConv, self).__init__()
+#         self.dropout = dropout
+#         self.activation = activation()
+#         self.num_layers = num_layers
+#         self.layers = torch.nn.ModuleList()
+#         self.layers.append(Mix_Pass(input_dim, hidden_dim))
+#         for _ in range(self.num_layers - 1):
+#             self.layers.append(Mix_Pass(hidden_dim, output_dim))
+
+#     def forward(self, x, edge_index, edge_weight=None, high_pass=False):
+#         z = x
+#         for i, conv in enumerate(self.layers):
+#             z = conv(z, edge_index, edge_weight, high_pass)
+#             z = self.activation(z)
+#             if i != self.num_layers - 1:
+#                 z = F.dropout(z, p=self.dropout, training=self.training)
+#         return z
+#     def reset_parameters(self):
+#         for hlcl in self.layers:
+#             hlcl.reset_parameters()
+    
+class HLCLConv(torch.nn.Module): # change not applied to the model yet
+    def __init__(self, input_dim, hidden_dim, output_dim, activation=torch.nn.ReLU, num_layers=2, dropout=0.2):
         super(HLCLConv, self).__init__()
         self.dropout = dropout
         self.activation = activation()
@@ -55,20 +78,20 @@ class HLCLConv(torch.nn.Module):
         self.layers = torch.nn.ModuleList()
         self.layers.append(Mix_Pass(input_dim, hidden_dim))
         for _ in range(self.num_layers - 1):
-            self.layers.append(Mix_Pass(hidden_dim, hidden_dim))
+            self.layers.append(Mix_Pass(hidden_dim, output_dim))
 
     def forward(self, x, edge_index, edge_weight=None, high_pass=False):
         z = x
-        z = F.dropout(z, p=self.dropout, training=self.training)
         for i, conv in enumerate(self.layers):
-            z = conv(z, edge_index, edge_weight,high_pass)
+            z = conv(z, edge_index, edge_weight, high_pass)
             z = self.activation(z)
             if i != self.num_layers - 1:
                 z = F.dropout(z, p=self.dropout, training=self.training)
-        return z
+        return F.log_softmax(z, dim=1)
     def reset_parameters(self):
         for hlcl in self.layers:
             hlcl.reset_parameters()
+            
 class Encoder(torch.nn.Module):
     def __init__(self, encoder, augmentor, hidden_dim, proj_dim):
         super(Encoder, self).__init__()
