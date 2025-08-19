@@ -1,7 +1,6 @@
 # HLCL: Graph Contrastive Learning under Heterophily via Graph Filters
 
-Official minimal implementation of **HLCL** (UAI 2024).  
-HLCL introduces a homophily–heterophily separation and applies **low-pass** and **high-pass graph filters** to augmented views, enabling state-of-the-art graph contrastive learning on heterophilic graphs.
+Official minimal implementation of **HLCL** (UAI 2024). HLCL introduces a homophily–heterophily separation and applies **low-pass** and **high-pass graph filters** to augmented views, enabling state-of-the-art graph contrastive learning on heterophilic graphs.
 
 ## Paper
 Wenhan Yang, Baharan Mirzasoleiman.  
