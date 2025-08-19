@@ -1,4 +1,3 @@
-````markdown
 # HLCL: Graph Contrastive Learning under Heterophily via Graph Filters
 
 Official minimal implementation of **HLCL** (UAI 2024).  
