@@ -83,6 +83,41 @@ class HLCLConv_supervised(torch.nn.Module):
         z = F.dropout(z, p=0.5, training=self.training)
         return F.log_softmax(self.fc2(z), dim=1)
     
+
+# class Encoder_supervised(torch.nn.Module):
+#     def __init__(self, encoder, augmentor, hidden_dim, proj_dim):
+#         super(Encoder_supervised, self).__init__()
+#         self.encoder = encoder 
+#         self.augmentor = augmentor
+
+#         self.fc1 = torch.nn.Linear(hidden_dim, proj_dim)
+#         self.fc2 = torch.nn.Linear(proj_dim, hidden_dim)
+
+#     def forward(self, args, data, edges = False, device=None):
+#         aug1, aug2 = self.augmentor
+#         x1, edge_index1, edge_weight1 = aug1(data.x, data.low_edge_index, data.low_edge_weight)
+#         x2, edge_index2, edge_weight2 = aug2(data.x, data.high_edge_index, data.high_edge_weight)
+#         # edge_index0 = add_edge(edge_index, 0.5)
+#         # z = self.encoder(x, edge_index0, edge_weight0)
+#         z1, zs1 = self.encoder(x1, edge_index1, edge_weight1)
+#         z2, zs2 = self.encoder(x2, edge_index2, edge_weight2, high_pass = True)
+#         if edges:
+#             low_edges_0,low_edges_1, _, _ = edge_create(args, z1, data.edge_index, args.high_k, args.low_k, device)
+#             high_edges_0,high_edges_1, _, _ = edge_create(args, z2, data.edge_index, args.high_k, args.low_k, device)
+#             data.low_edge_index = union(low_edges_0, high_edges_0).to(device)
+#             data.high_edge_index = union(low_edges_1, high_edges_1).to(device)
+#             data.low_edge_weight = torch.ones(data.low_edge_index.shape[1]).to(device)
+#             data.high_edge_weight = torch.ones(data.high_edge_index.shape[1]).to(device)
+#             # return res_combine(args, device, origin_edge_index, args.low_k, args.high_k, z1, z2)
+#             return representation_combine_supervised(args, z1, z2, zs1, zs2), data
+#         else:
+#             return representation_combine_supervised(args, z1, z2, zs1, zs2)
+        
+#     def project(self, z: torch.Tensor) -> torch.Tensor:
+#         z = F.elu(self.fc1(z))
+#   
+    
+        #  return self.fc2(z)
     
 class HLCLConv(torch.nn.Module):
     def __init__(self, input_dim, hidden_dim, activation, num_layers, dropout=0.2):
@@ -107,6 +142,33 @@ class HLCLConv(torch.nn.Module):
     def reset_parameters(self):
         for hlcl in self.layers:
             hlcl.reset_parameters()
+
+# class Encoder(torch.nn.Module):
+#     def __init__(self, encoder, augmentor, hidden_dim, proj_dim):
+#         super(Encoder, self).__init__()
+#         self.encoder = encoder 
+#         self.augmentor = augmentor
+
+#         self.fc1 = torch.nn.Linear(hidden_dim, proj_dim)
+#         self.fc2 = torch.nn.Linear(proj_dim, hidden_dim)
+
+#     def forward(self, args, x, lp_edge_index, hp_edge_index, lp_edge_weight, hp_edge_weight, origin_edge_index = None, edges = False, device=None):
+#         aug1, aug2 = self.augmentor
+#         x1, edge_index1, edge_weight1 = aug1(x, lp_edge_index, lp_edge_weight)
+#         x2, edge_index2, edge_weight2 = aug2(x, hp_edge_index, hp_edge_weight)
+#         # edge_index0 = add_edge(edge_index, 0.5)
+#         # z = self.encoder(x, edge_index0, edge_weight0)
+#         z1 = self.encoder(x1, edge_index1, edge_weight1)
+#         z2 = self.encoder(x2, edge_index2, edge_weight2, high_pass = True)
+
+#         if edges:
+#             return res_combine(args, device, origin_edge_index, args.low_k, args.high_k, z1, z2)
+#         else:
+#             return representation_combine(args, z1, z2)
+        
+#     def project(self, z: torch.Tensor) -> torch.Tensor:
+#         z = F.elu(self.fc1(z))
+#         return self.fc2(z)
     
 class Sampler(ABC):
     def __init__(self, intraview_negs="none"):
@@ -151,6 +213,7 @@ class SameScaleSampler(Sampler):
         if neg_mask is None:
             neg_mask = 1. - pos_mask
         return anchor, sample, pos_mask, neg_mask
+        # return anchor, sample, pos_mask
     
 def get_sampler(mode: str, intraview_negs: bool) -> Sampler:
     return SameScaleSampler(intraview_negs=intraview_negs)
@@ -207,6 +270,13 @@ class Encoder(torch.nn.Module):
             data.high_edge_index = high_edges
             data.low_edge_weight = torch.ones(data.low_edge_index.shape[1]).to(device)
             data.high_edge_weight = torch.ones(data.high_edge_index.shape[1]).to(device)
+            # low_edges_0,low_edges_1, _, _ = edge_create_(args, z1, data.low_edge_index, device)
+            # high_edges_0,high_edges_1, _, _ = edge_create_(args, z2, data.high_edge_index, device)
+            # data.low_edge_index = union(low_edges_0, high_edges_0).to(device)
+            # data.high_edge_index = union(low_edges_1, high_edges_1).to(device)
+            # data.low_edge_weight = torch.ones(data.low_edge_index.shape[1]).to(device)
+            # data.high_edge_weight = torch.ones(data.high_edge_index.shape[1]).to(device)
+            # return res_combine(args, device, origin_edge_index, args.low_k, args.high_k, z1, z2)
             return representation_combine(args, z1, z2, z3, z4), data
         else:
             return representation_combine(args, z1, z2, z3, z4)

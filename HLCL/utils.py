@@ -11,6 +11,45 @@ import argparse
 from torch_geometric.loader import ClusterData, ClusterLoader, RandomNodeSampler
 import GCL.augmentors as A
 from HLCL.augmentation import PPRDiffusion, EdgeAdding
+# def create_neg_mask(args, device, low_graph=None, high_graph=None, x=None):
+#     if args.neg == "inverse_low":
+#         a = to_dense_adj(low_graph)
+#         a[a==0] = -1
+#         a[a>0] = 0
+#         a = a * -1
+#         a = a[0].cpu()
+#     elif args.neg == "high":
+#         a = to_dense_adj(high_graph)
+#         a = a[0].cpu()
+#     elif args.neg == "simple":
+#         a = None
+#     elif args.neg == "global":
+#         graph = x @ x.t()
+#         graph[graph==0] = 10
+#         indices = graph.topk(k=300, largest=False)[1]
+#         a = torch.zeros(graph.shape[0], graph.shape[0]).to(device).scatter_(1, indices, 1)
+#         a = a.cpu()
+#     return a
+
+# def create_neg_mask_cuda(args, device, low_graph=None, high_graph=None, x=None):
+#     if args.neg == "inverse_low":
+#         a = to_dense_adj(low_graph)
+#         a[a==0] = -1
+#         a[a>0] = 0
+#         a = a * -1
+#         a = a[0].to(device)
+#     elif args.neg == "high":
+#         a = to_dense_adj(high_graph)
+#         a = a[0].to(device)
+#     elif args.neg == "simple":
+#         a = None
+#     elif args.neg == "global":
+#         graph = x @ x.t()
+#         graph[graph==0] = 10
+#         indices = graph.topk(k=300, largest=False)[1]
+#         a = torch.zeros(graph.shape[0], graph.shape[0]).to(device).scatter_(1, indices, 1)
+#         a = a.to(device)
+#     return a
 
 def seed_everything(seed=1234):                                                                                                          
     torch.manual_seed(seed)                                                      
@@ -49,8 +88,54 @@ def create_neg_mask(args, datas, device):
     new_datas = []
     for data in datas:
         data.neg_mask = -1
+        # self_loops = torch.stack([torch.arange(data.x.shape[0]), torch.arange(data.x.shape[0])], dim=0).to(device)
+        # low_edge_index = torch.cat((self_loops, data.low_edge_index), dim=1)
+        # a = to_dense_adj(low_edge_index)
+        
+        # data.pos_mask = a.to(device)
+        # data.neg_mask = 1. - data.pos_mask
+        # data.low_neg_mask = 
+        # if args.neg == "inverse_low":
+        #     a = to_dense_adj(data.low_edge_index)
+        #     a[a==0] = -1
+        #     a[a>0] = 0
+        #     a = a * -1
+        #     data.neg_mask = a[0].to(device)
+        # elif args.neg == "high":
+        #     a = to_dense_adj(data.high_edge_index)
+        #     data.neg_mask = a[0].to(device)
+        # elif args.neg == "simple":
+        #     data.neg_mask = -1
+        # elif args.neg == "global":
+        #     graph = data.x @ data.x.t()
+        #     graph[graph==0] = 10
+        #     indices = graph.topk(k=300, largest=False)[1]
+        #     data.neg_mask = torch.zeros(graph.shape[0], graph.shape[0]).to(device).scatter_(1, indices, 1)
+        #     data.neg_mask = data.neg_mask.to(device)
         new_datas.append(data)
     return new_datas
+# def create_neg_mask_updated(args, datas, device):
+#     new_datas = []
+#     for data in datas:
+#         if args.neg == "inverse_low":
+#             a = to_dense_adj(data.low_edge_index)
+#             a[a==0] = -1
+#             a[a>0] = 0
+#             a = a * -1
+#             data.neg_mask = a[0]
+#         elif args.neg == "high":
+#             a = to_dense_adj(data.high_edge_index)
+#             data.neg_mask = a[0]
+#         elif args.neg == "simple":
+#             data.neg_mask = -1
+#         elif args.neg == "global":
+#             graph = data.x @ data.x.t()
+#             graph[graph==0] = 10
+#             indices = graph.topk(k=300, largest=False)[1]
+#             data.neg_mask = torch.zeros(graph.shape[0], graph.shape[0]).scatter_(1, indices, 1)
+#             data.neg_mask = data.neg_mask
+#         new_datas.append(data)
+#     return new_datas
 
 def edge_create(args, data, device):
     with torch.no_grad():
@@ -117,6 +202,24 @@ def edge_create(args, data, device):
                 high_graph.append(torch.tensor([node_lst[node][random_edge], node]))
                 high_weight.append(high_edge_wgt)
                 high_weight.append(high_edge_wgt)
+            # if len(high_edge_idx) == 0:
+            #     random_node = random.choice([n for n in range(data.x.size(0)) if n != node])
+            #     # edge_pair = torch.tensor([node, random_node])
+            #     high_graph.append(torch.tensor([node, random_node]))
+            #     high_graph.append(torch.tensor([random_node, node]))
+            #     high_weight.append(high_edge_wgt)
+            #     high_weight.append(high_edge_wgt)
+            # if len(low_edge_idx) == 0:
+            #     random_node = random.choice([n for n in range(data.x.size(0)) if n != node])
+            #     # edge_pair = torch.tensor([node, random_node])
+            #     low_graph.append(torch.tensor([node, random_node]))
+            #     low_graph.append(torch.tensor([random_node, node]))
+            #     low_weight.append(high_edge_wgt)
+            #     low_weight.append(high_edge_wgt)
+        # if args.add_edge > 0:
+        #     print("indeed")
+        #     add_low_graph, add_low_weight = new_edges(args, graph)
+        #     low_graph = low_graph + add_low_graph
         data.high_edge_index = torch.stack(high_graph).t().to(device)
         data.low_edge_index = torch.stack(low_graph).t().to(device)
         data.high_edge_weight = torch.ones(data.high_edge_index.shape[1]).to(device)
@@ -163,21 +266,40 @@ def edge_create_(args, x, edge_idx, device=None):
                     high_edge_wgt, high_edge_idx = remained_wgts, remained_idx
                 else:
                     high_edge_wgt, high_edge_idx = torch.tensor(1), torch.tensor([])
+            # else:
+            #     wgt = torch.tensor(wgt)
+            #     low_edge_idx = torch.nonzero(wgt > args.threshold * threshold).flatten()
+            #     low_edge_wgt = wgt[low_edge_idx]
+            #     high_edge_wgt, high_edge_idx = th_delete(wgt, low_edge_idx)
                 
             for idx, neigh_node in enumerate(high_edge_idx):
+                # print(len(high_edge_idx))
+                # edge_pair = torch.tensor([node, node_lst[node][neigh_node]])
                 high_graph.append(torch.tensor([node, node_lst[node][neigh_node]]))
                 high_graph.append(torch.tensor([node_lst[node][neigh_node], node]))
                 high_weight.append(high_edge_wgt[idx])
                 high_weight.append(high_edge_wgt[idx])
             for idx, neigh_node in enumerate(low_edge_idx):
+                # edge_pair = torch.tensor([node, node_lst[node][neigh_node]])
                 low_graph.append(torch.tensor([node, node_lst[node][neigh_node]]))
                 low_graph.append(torch.tensor([node_lst[node][neigh_node], node]))
                 low_weight.append(low_edge_wgt[idx])
                 low_weight.append(low_edge_wgt[idx])
+            # if len(high_edge_idx) == 0:
+            #     random_node = random.choice([n for n in range(x.size(0)) if n != node])
+            #     # edge_pair = torch.tensor([node, random_node])
+            #     high_graph.append(torch.tensor([node, random_node]))
+            #     high_graph.append(torch.tensor([random_node, node]))
+            #     high_weight.append(high_edge_wgt)
+            #     high_weight.append(high_edge_wgt)
             if len(high_edge_idx) == 0:
                 random_edge = random.choice(low_edge_idx)
                 high_graph.append(torch.tensor([node, node_lst[node][random_edge]]))
                 high_graph.append(torch.tensor([node_lst[node][random_edge], node]))
+            #     # random_node = random.choice([n for n in range(data.x.size(0)) if n != node])
+            #     # edge_pair = torch.tensor([node, random_node])
+                # high_graph.append(torch.tensor([node, random_node]))
+                # high_graph.append(torch.tensor([random_node, node]))
                 high_weight.append(high_edge_wgt)
                 high_weight.append(high_edge_wgt)
         
@@ -228,12 +350,57 @@ def res_combine_supervised(args, device, edge_index, low_k=None, high_k=None, lo
 def res_combine(args, device, edge_index, low_k=None, high_k=None, low_x=None, high_x=None):
     with torch.no_grad():
         ret = representation_combine(args, low_x, high_x)
+        # if args.edge != "soft":
+        # if args.md == "intersect":
         low_edges_0,low_edges_1, low_edge_weight_0, low_edge_weight_1 = edge_create_(args, low_x, edge_index, device)
         high_edges_0,high_edges_1, high_edge_weight_0, high_edge_weight_1 = edge_create_(args, high_x, edge_index, device)
         low_pass_edges = intersect(low_edges_0, high_edges_0)
         high_pass_edges = intersect(low_edges_1, high_edges_1)
         low_edge_weight = torch.ones(low_pass_edges.shape[1])
         high_edge_weight = torch.ones(high_pass_edges.shape[1])
+    return ret, low_pass_edges, high_pass_edges, low_edge_weight, high_edge_weight
+        # elif args.md == "intersect":
+        #     low_edges_0,low_edges_1, low_edge_weight_0, low_edge_weight_1 = edge_create(args, low_x, edge_index, high_k, low_k, device)
+        #     high_edges_0,high_edges_1, high_edge_weight_0, high_edge_weight_1 = edge_create(args, high_x, edge_index, high_k, low_k, device)
+        #     low_pass_edges = intersect(low_edges_0, high_edges_0)
+        #     high_pass_edges = intersect(low_edges_1, high_edges_1)
+        #     low_edge_weight = torch.ones(low_pass_edges.shape[1])
+        #     high_edge_weight = torch.ones(high_pass_edges.shape[1])
+        # elif args.md == "low":
+        #     low_edges_0,low_edges_1, low_edge_weight_0, low_edge_weight_1 = edge_create(args, low_x, edge_index, high_k, low_k, device)
+        #     low_pass_edges = low_edges_0
+        #     high_pass_edges = low_edges_1
+        #     low_edge_weight = torch.ones(low_pass_edges.shape[1])
+        #     high_edge_weight = torch.ones(high_pass_edges.shape[1])
+        # elif args.md == "high":
+        #     high_edges_0,high_edges_1, high_edge_weight_0, high_edge_weight_1 = edge_create(args, high_x, edge_index, high_k, low_k, device)
+        #     low_pass_edges = high_edges_0
+        #     high_pass_edges = high_edges_1
+        #     low_edge_weight = torch.ones(low_pass_edges.shape[1])
+        #     high_edge_weight = torch.ones(high_pass_edges.shape[1])
+    # else:
+    #     if args.md == "union":
+    #         low_graph, adj_idx = edge_create(args, low_x, edge_index, high_k, low_k, device)
+    #         high_graph, adj_idx = edge_create(args, high_x, edge_index, high_k, low_k, device)
+    #         edge, weight = soft_union(low_graph, high_graph, adj_idx)
+    #         low_pass_edges = edge[0]
+    #         high_pass_edges = edge[1]
+
+    #         low_edge_weight = weight[0]
+    #         high_edge_weight = weight[1]
+
+    #     elif args.md == "low":
+    #         graph, adj_idx = edge_create(args,low_x, edge_index)
+    #         low_graph = F.normalize(graph)
+    #         high_graph = F.normalize(adj_idx - low_graph)
+    #         low_pass_edges, low_edge_weight = dense_to_sparse(low_graph)
+    #         high_pass_edges, high_edge_weight = dense_to_sparse(high_graph)
+    #     elif args.md == "high":
+    #         graph, adj_idx = edge_create(args,high_x, edge_index)
+    #         low_graph = F.normalize(graph)
+    #         high_graph = F.normalize(adj_idx - low_graph)
+    #         low_pass_edges, low_edge_weight = dense_to_sparse(low_graph)
+    #         high_pass_edges, high_edge_weight = dense_to_sparse(high_graph)
     return ret, low_pass_edges, high_pass_edges, low_edge_weight, high_edge_weight
 
         
@@ -289,26 +456,32 @@ def get_arguments():
     parser.add_argument('--pre_eval', type=int, default = 50, help='number per epoch to evaluate GCL')
     parser.add_argument('--hidden', type=int, default = 512, help='gcn, gat, fbgcn')
     parser.add_argument('--seed', type=int, default=42, help='random seed')
+    parser.add_argument('--intraview_negs' ,default="simple") # delete
     parser.add_argument('--preepochs' ,type=int, default = 500, help='pretraining epoch')
     parser.add_argument('--per_epoch' ,type=int, default = 50, help='graph update frequency')
     parser.add_argument('--pre_learning_rate',type=float, default = 0.001, help='pre training learning rate')
     parser.add_argument('--aug1', type=float, default = 0.2, help='aug parameter')
     parser.add_argument('--aug2', type=float, default = 0.2, help='aug parameter')
+    parser.add_argument('--haug1', type=float, default = 0.2, help='aug parameter')
+    parser.add_argument('--haug2', type=float, default = 0.2, help='aug parameter')
     parser.add_argument('--augmentation', type=str, default = "simple")
     parser.add_argument('--runs', type=int, default=10, help='number of distinct runs')
     parser.add_argument('--num_layer', type=int, default=2, help='number of layers')
     parser.add_argument('--device', type=int, default=1)
+    parser.add_argument('--edge', type=str, default="ratio") # delete
     parser.add_argument('--low_k', type=float, default=0.2)
     parser.add_argument('--high_k', type=float, default=0.2)
     parser.add_argument('--threshold', type=float, default=0.01)
     parser.add_argument('--combine_x', action='store_true')
     parser.add_argument('--infer_combine_x', action='store_false')
+    parser.add_argument('--neg', type=str, default = "simple")
     parser.add_argument('--split', type=str, default = "simple")
     parser.add_argument('--cluster_batch_size', type=int, default = 1)
     parser.add_argument('--num_parts', type=int, default = 1)
     parser.add_argument('--eval', type=str, default = "acc")
     parser.add_argument('--train_ratio', type=float, default=0.1)
     parser.add_argument('--test_ratio', type=float, default=0.8)
+    parser.add_argument('--add_edge', type=int, default=0)
 
 
     args, unknown = parser.parse_known_args()
