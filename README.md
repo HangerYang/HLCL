@@ -38,5 +38,3 @@ Results and checkpoints are saved in:
 }
 ```
 
-```
-```
