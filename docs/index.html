@@ -53,7 +53,7 @@ a:hover{color:var(--ink)}
 .nav ul a{color:var(--ink-2);text-decoration:none;font-size:15px}
 .nav ul a:hover{color:var(--ink)}
 
-header.hero{padding:64px 0 40px}
+header.hero{padding:52px 0 40px}
 .badges{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px}
 .venue{display:inline-block;font-size:14px;font-weight:600;color:var(--accent);background:var(--accent-wash);padding:4px 10px;border-radius:999px}
 .first{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:#fff;background:var(--ink);padding:4px 12px 4px 8px;border-radius:999px}
@@ -74,24 +74,32 @@ h1{font:500 clamp(40px,6vw,64px)/1.02 var(--serif);letter-spacing:-.02em;margin:
 .btn.dark:hover{background:#2c3850;color:#fff}
 .btn svg{width:17px;height:17px;flex:none}
 
+/* hero grid */
+.hgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:44px;align-items:start}
+.hgrid .headline{font-size:clamp(22px,2.4vw,28px)}
 /* demo */
-.demo{margin:44px 0 0;border:1px solid var(--rule);border-radius:16px;padding:22px 24px 18px}
-.demo-top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:6px}
-.demo h2{font:500 22px/1.25 var(--serif);margin:0}
+.demo{margin:0;border:1px solid var(--rule);border-radius:16px;padding:20px 20px 16px;background:var(--paper)}
+.demo h2{font:500 21px/1.25 var(--serif);margin:0 0 12px}
 .seg{display:inline-flex;border:1px solid var(--rule);border-radius:999px;padding:3px;gap:2px;background:var(--paper);flex-wrap:wrap}
-.seg button{font:500 14.5px/1 var(--sans);height:34px;padding:0 14px;border-radius:999px;border:0;background:transparent;color:var(--ink-2);cursor:pointer}
+.seg button{font:500 14px/1 var(--sans);height:32px;padding:0 13px;border-radius:999px;border:0;background:transparent;color:var(--ink-2);cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
-.demo-body{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:28px;align-items:center}
-.demo #g{width:100%;height:auto;display:block}
-.demo .e,.demo .nd{transition:all .5s cubic-bezier(.3,.7,.2,1)}
-.readout b{display:block;font:500 46px/1 var(--serif);color:var(--accent);margin:4px 0 6px}
-.readout .lbl{font-size:14px;color:var(--ink-3)}
-.readout p{font-size:15.5px;color:var(--ink-2);margin:12px 0 0}
-.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13.5px;color:var(--ink-2);margin:10px 0 0}
-.legend span{display:inline-flex;align-items:center;gap:7px}
+.demo #g{width:100%;height:auto;display:block;margin:6px 0 2px}
+.demo .e,.demo .nd{transition:fill .5s ease,stroke .4s ease}
+.ctrl{display:grid;grid-template-columns:auto 1fr 20px;gap:12px;align-items:center;font-size:14px;color:var(--ink-2);margin:0 0 12px}
+.ctrl[hidden]{display:none}
+.ctrl input{width:100%;accent-color:var(--accent)}
+.ctrl output{font-weight:600;color:var(--ink);text-align:right}
+.meter{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;border-top:1px solid var(--rule);padding-top:12px}
+.meter .lbl{display:block;font-size:13px;color:var(--ink-3);line-height:1.3}
+.meter b{display:block;font:500 34px/1.1 var(--serif);color:var(--accent);margin:4px 0 6px}
+.meter .bar{display:block;height:8px;background:var(--wash);border-radius:4px;overflow:hidden}
+.meter .bar span{display:block;height:100%;background:var(--accent);border-radius:4px;transition:width .5s ease}
+.demo-text{font-size:14.5px;color:var(--ink-2);margin:12px 0 0;line-height:1.5;min-height:4.4em}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--ink-2);margin:8px 0 0}
+.legend span{display:inline-flex;align-items:center;gap:6px}
 .legend svg{display:inline-block;flex:none}
 
-.drops{display:grid;grid-template-columns:repeat(3,1fr);margin:40px 0 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.drops{display:grid;grid-template-columns:repeat(3,1fr);margin:32px 0 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
 .drop{padding:22px 24px 22px 0}
 .drop+.drop{padding-left:24px;border-left:1px solid var(--rule)}
 .drop .num{font:500 34px/1.1 var(--serif);color:var(--accent)}
@@ -160,6 +168,10 @@ td.kind{color:var(--ink-3);font-size:13px;text-align:left}
 .abl .row .track{height:12px;background:var(--wash);border-radius:6px;overflow:hidden}
 .abl .row .fill{display:block;height:100%;border-radius:6px}
 .abl .ds{font-weight:600;font-size:14.5px;margin:14px 0 6px}
+.theory{margin:32px 0 0;max-width:var(--text);border-left:3px solid var(--accent);padding:2px 0 2px 18px}
+.theory p{color:var(--ink-2);font-size:16px;margin:0}
+.tune{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:36px;align-items:center;margin-top:56px}
+.tune svg{width:100%;height:auto;display:block}
 .realfig img{width:100%;height:auto;display:block;border:1px solid var(--rule);border-radius:12px;padding:10px;background:#fff}
 
 .cite{position:relative;background:var(--ink);color:#e9ecf2;border-radius:14px;padding:22px 24px;margin-top:8px}
@@ -172,7 +184,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 footer a{color:var(--ink-2)}
 
 @media (max-width:820px){
-  .demo-body,.nbs,.grid2,.eqs{grid-template-columns:minmax(0,1fr)}
+  .hgrid,.nbs,.grid2,.eqs,.tune{grid-template-columns:minmax(0,1fr)}
   .drops{grid-template-columns:1fr}
   .drop,.drop+.drop{padding:18px 0;border-left:0}
   .drop+.drop{border-top:1px solid var(--rule)}
@@ -209,58 +221,62 @@ footer a{color:var(--ink-2)}
 <main id="main">
 <header class="hero" id="top">
   <div class="wrap">
-    <div class="badges">
-      <span class="venue">UAI 2024</span>
-      <span class="first"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/></svg>First graph CL method with graph filters</span>
-    </div>
-    <h1>HLCL</h1>
-    <p class="subtitle">Graph contrastive learning under heterophily via graph filters</p>
-    <p class="headline">The <u>first</u> graph contrastive learning method built on graph filters: low-pass where neighbors agree, high-pass where they differ.</p>
-    <p class="claim">On graphs where connected nodes usually belong to different classes, averaging over neighbors erases exactly what tells nodes apart. HLCL learns from both what neighbors share and how they differ, without any labels.</p>
-    <p class="authors">
-      <a href="https://hangeryang.github.io/">Wenhan Yang</a>,&nbsp;
-      <a href="https://baharanm.github.io/">Baharan Mirzasoleiman</a>
-    </p>
-    <p class="affil">University of California, Los Angeles</p>
-    <div class="buttons">
-      <a class="btn dark" href="https://arxiv.org/abs/2303.06344">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>
-        Paper
-      </a>
-      <a class="btn" href="https://proceedings.mlr.press/v244/yang24a.html">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V5a2 2 0 0 1 2-2h14v16H6.5A2.5 2.5 0 0 0 4 21.5"/><path d="M20 19v3H6.5"/></svg>
-        PMLR
-      </a>
-      <a class="btn" href="https://github.com/HangerYang/HLCL">
-        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.5 2 2 6.6 2 12.2c0 4.5 2.9 8.3 6.8 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1.1 1.5 1.1.9 1.6 2.4 1.1 2.9.8.1-.7.4-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.7-4.6 5 .4.3.7 1 .7 2v2.9c0 .3.2.6.7.5A10.2 10.2 0 0 0 22 12.2C22 6.6 17.5 2 12 2z"/></svg>
-        Code
-      </a>
-      <a class="btn" href="#citation">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 11H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6c0 3-2 5-5 6M20 11h-4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6c0 3-2 5-5 6"/></svg>
-        BibTeX
-      </a>
-    </div>
+    <div class="hgrid">
+      <div class="htext">
+        <div class="badges">
+          <span class="venue">UAI 2024</span>
+          <span class="first"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/></svg>First graph CL method with graph filters</span>
+        </div>
+        <h1>HLCL</h1>
+        <p class="subtitle">Graph contrastive learning under heterophily via graph filters</p>
+        <p class="headline">The <u>first</u> graph contrastive learning method built on graph filters: low-pass where neighbors agree, high-pass where they differ.</p>
+        <p class="authors">
+          <a href="https://hangeryang.github.io/">Wenhan Yang</a>,&nbsp;
+          <a href="https://baharanm.github.io/">Baharan Mirzasoleiman</a>
+        </p>
+        <p class="affil">University of California, Los Angeles</p>
+        <div class="buttons">
+          <a class="btn dark" href="https://arxiv.org/abs/2303.06344">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>
+            Paper
+          </a>
+          <a class="btn" href="https://proceedings.mlr.press/v244/yang24a.html">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V5a2 2 0 0 1 2-2h14v16H6.5A2.5 2.5 0 0 0 4 21.5"/><path d="M20 19v3H6.5"/></svg>
+            PMLR
+          </a>
+          <a class="btn" href="https://github.com/HangerYang/HLCL">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.5 2 2 6.6 2 12.2c0 4.5 2.9 8.3 6.8 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1.1 1.5 1.1.9 1.6 2.4 1.1 2.9.8.1-.7.4-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.7-4.6 5 .4.3.7 1 .7 2v2.9c0 .3.2.6.7.5A10.2 10.2 0 0 0 22 12.2C22 6.6 17.5 2 12 2z"/></svg>
+            Code
+          </a>
+          <a class="btn" href="#citation">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 11H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6c0 3-2 5-5 6M20 11h-4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6c0 3-2 5-5 6"/></svg>
+            BibTeX
+          </a>
+        </div>
+      </div>
 
-    <figure class="demo" id="demo" aria-labelledby="demo-h">
-      <div class="demo-top">
-        <h2 id="demo-h">What does each filter do to a real neighborhood?</h2>
+      <figure class="demo" id="demo" aria-labelledby="demo-h">
+        <h2 id="demo-h">Average a real neighborhood. Watch what's left.</h2>
         <div class="seg" role="group" aria-label="Filter">
           <button type="button" data-m="raw" aria-pressed="true">Input</button>
-          <button type="button" data-m="lp" aria-pressed="false">Low-pass only</button>
+          <button type="button" data-m="lp" aria-pressed="false">Low-pass everywhere</button>
           <button type="button" data-m="hlcl" aria-pressed="false">HLCL</button>
         </div>
-      </div>
-      <div class="demo-body">
         <svg id="g" viewBox="30 20 580 440" role="img" aria-labelledby="g-desc"><desc id="g-desc">A real 16-node neighborhood from the Chameleon graph, with node colors showing five classes.</desc></svg>
-        <div class="readout" aria-live="polite">
-          <span class="lbl" id="r-lbl"></span>
-          <b id="r-num"></b>
-          <p id="r-text"></p>
+        <div class="ctrl" id="ctrl">
+          <label for="rounds">Rounds of message passing</label>
+          <input type="range" id="rounds" min="1" max="3" step="1" value="1">
+          <output id="rounds-o" for="rounds">1</output>
         </div>
-      </div>
-      <div class="legend" id="legend" aria-hidden="true"></div>
-    </figure>
-    <p class="figcap">A real neighborhood from the Chameleon graph (Figure 2b of the paper). Node color is the class. Node colors after filtering are computed live from this graph; accuracies are from Tables 1 and 3. For illustration the edges are split using true labels; HLCL infers the split from node features alone.</p>
+        <div class="meter" aria-live="polite">
+          <div><span class="lbl">Different-class neighbors still distinguishable</span><b id="m-sep">100%</b><span class="bar"><span id="m-bar"></span></span></div>
+          <div><span class="lbl" id="m-acc-l">Chameleon accuracy</span><b id="m-acc">—</b></div>
+        </div>
+        <p class="demo-text" id="r-text"></p>
+        <div class="legend" id="legend" aria-hidden="true"></div>
+      </figure>
+    </div>
+    <p class="figcap">A real neighborhood from the Chameleon graph (Figure 2b of the paper); node color is the class. Colors and the distinguishability score are computed live on this graph; accuracies are from Tables 1 and 3. For illustration the edges are split using true labels, while HLCL infers the split from node features alone.</p>
 
     <div class="drops" role="list">
       <div class="drop" role="listitem">
@@ -360,7 +376,12 @@ footer a{color:var(--ink-2)}
       <p class="eq"><span class="t">Low-pass, homophilic subgraph</span><span class="l">(h<sub>i</sub>)<sub>L</sub></span> = Σ<sub>j ∈ N<sup>hom</sup>(i) ∪ {i}</sub> ( h<sub>i</sub> + h<sub>j</sub> )</p>
       <p class="eq"><span class="t">High-pass, heterophilic subgraph</span><span class="h">(h<sub>i</sub>)<sub>H</sub></span> = Σ<sub>j ∈ N<sup>het</sup>(i) ∪ {i}</sub> ( h<sub>i</sub> − h<sub>j</sub> )</p>
     </div>
-    <p class="figcap">Both filters are ordinary message passing, so HLCL costs about the same as a regular GNN and scales to graphs with millions of edges. The paper also proves that the HLCL loss makes the encoder invariant in both the low-frequency and high-frequency spectrum.</p>
+    <p class="figcap">Both filters are ordinary message passing, so HLCL costs about the same as a regular GNN and scales to graphs with millions of edges.</p>
+
+    <div class="theory">
+      <h3>Why it works, formally</h3>
+      <p>Theorem 1 lower-bounds the HLCL loss by two sums over the graph's spectrum: one over the <b>low-frequency</b> components of the two homophilic views, and one over the <b>high-frequency</b> components of the two heterophilic views. Minimizing the loss makes the encoder invariant to augmentation in both bands, so the learned representation keeps the smooth structure that neighbors share and the sharp structure that sets them apart. A low-pass-only method only gets the first half.</p>
+    </div>
   </div>
 </section>
 
@@ -383,6 +404,15 @@ footer a{color:var(--ink-2)}
         <p class="muted" style="font-size:15.5px">On Chameleon, HLCL's representations concentrate in fewer directions (left) that line up more with the labels (right) than GRACE's, a standard low-pass graph CL method.</p>
         <img src="static/spectrum.png" width="1400" height="460" alt="Figure 3 of the paper: eigenvalue distribution and label alignment of GRACE and HLCL representations on Chameleon">
         <p class="figcap">Figure 3 (a, b) of the paper.</p>
+      </div>
+    </div>
+
+    <div class="tune">
+      <figure style="margin:0"><svg id="tune" viewBox="0 0 560 300" role="img" aria-label="Accuracy against k1 on Cora and Chameleon; each peaks where k1 is close to the graph's homophily ratio"></svg></figure>
+      <div>
+        <h3>Tune it with one number</h3>
+        <p class="muted" style="font-size:15.5px">The main knob, k₁, is the fraction of each node's edges treated as homophilic. Accuracy peaks where k₁ is close to the graph's homophily ratio β: on Cora (β = 0.83) and Chameleon (β = 0.23) here, and also on CiteSeer and Actor.</p>
+        <p class="muted" style="font-size:15.5px">In practice you can label a small sample of the graph, measure β, and set k₁ from it.</p>
       </div>
     </div>
 
@@ -432,7 +462,7 @@ const mk = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag)
 
 /* Real neighborhoods from Figure 2 of the paper (node x, y, class; edges) */
 const NB = {"nb_hom":{"n":[[266,50,0],[426,92,0],[141,121,3],[289,134,0],[470,177,0],[576,227,0],[154,233,0],[322,242,0],[505,293,0],[63,330,0],[159,345,3],[396,372,0],[459,431,0]],"e":[[0,3],[1,3],[1,4],[1,7],[2,3],[2,7],[3,4],[3,6],[3,7],[4,5],[4,7],[4,8],[5,7],[5,8],[6,7],[6,10],[7,8],[7,9],[7,10],[7,11],[7,12],[8,11],[9,10],[0,7]]},"nb_het":{"n":[[147,50,1],[68,113,0],[371,128,2],[200,156,0],[293,188,1],[197,199,0],[447,214,3],[156,248,2],[305,273,0],[63,283,4],[337,297,2],[576,313,1],[127,329,1],[242,336,2],[479,385,1],[254,431,4]],"e":[[0,3],[0,5],[1,3],[1,5],[2,3],[2,5],[2,8],[3,4],[3,5],[3,8],[4,5],[4,6],[4,7],[4,8],[4,10],[5,6],[5,7],[5,8],[5,9],[6,8],[6,10],[7,8],[8,9],[8,10],[8,11],[8,12],[8,13],[8,15],[9,10],[10,11],[10,12],[10,13],[10,14],[13,15]]}};
-const CLS = [[232, 185, 49], [59, 154, 148], [143, 181, 115], [109, 63, 125], [91, 111, 168]];
+const CLS = [[240, 180, 41], [31, 158, 137], [123, 63, 160], [47, 95, 191], [155, 191, 58]];
 const hex = c => "#" + c.map(v => Math.round(v).toString(16).padStart(2, "0")).join("");
 
 function drawStatic(id, g) {
@@ -445,38 +475,51 @@ drawStatic("nb-het", NB.nb_het);
 
 /* ---------- interactive filter demo on the heterophilic neighborhood ---------- */
 (function () {
-  const g = NB.nb_het, svg = document.getElementById("g"), N = g.n.length;
+  const g = NB.nb_het, svg = document.getElementById("g"), N = g.n.length, K = CLS.length;
   const adj = Array.from({ length: N }, () => []);
   g.e.forEach(([a, b]) => { adj[a].push(b); adj[b].push(a); });
   const same = (a, b) => g.n[a][2] === g.n[b][2];
-  // low-pass on the whole graph: each node becomes the mean of itself and its neighbours (renormalised adjacency, one step)
-  const lpAll = g.n.map((nd, i) => { const ids = [i, ...adj[i]]; return [0, 1, 2].map(k => ids.reduce((s, j) => s + CLS[g.n[j][2]][k], 0) / ids.length); });
+  const onehot = i => Array.from({ length: K }, (_, k) => +(g.n[i][2] === k));
+  // one round of mean aggregation over {i} ∪ neighbours, restricted by an edge filter
+  const step = (X, keep) => X.map((_, i) => { const ids = [i, ...adj[i].filter(j => keep(i, j))]; return Array.from({ length: K }, (_, k) => ids.reduce((s, j) => s + X[j][k], 0) / ids.length); });
+  const run = (r, keep) => { let X = g.n.map((_, i) => onehot(i)); for (let t = 0; t < r; t++) X = step(X, keep); return X; };
+  const color = v => hex([0, 1, 2].map(c => v.reduce((s, w, k) => s + w * CLS[k][c], 0)));
+  // how distinguishable different-class neighbours remain: mean distance across heterophilic edges, relative to the input
+  const het = g.e.filter(([a, b]) => !same(a, b));
+  const sep = X => het.reduce((s, [a, b]) => s + Math.hypot(...X[a].map((v, k) => v - X[b][k])), 0) / het.length / Math.SQRT2;
   const edges = g.e.map(([a, b]) => mk("line", { class: "e", x1: g.n[a][0], y1: g.n[a][1], x2: g.n[b][0], y2: g.n[b][1] }, svg));
-  const nodes = g.n.map(([x, y]) => mk("circle", { class: "nd", cx: x, cy: y, r: 16, stroke: "#fff", "stroke-width": 2.5 }, svg));
-  const M = {
-    raw: { lbl: "Input", num: "", text: "Each node's color is its class. Edges connect nodes of mostly different classes: this neighborhood mixes five of them." },
-    lp: { lbl: "Chameleon accuracy, low-pass only", num: "35.4%", text: "Averaging every node with all of its neighbors, as standard graph CL methods like GRACE do, blends the classes into the same muddy color. The differences that identify each node are gone." },
-    hlcl: { lbl: "Chameleon accuracy, HLCL", num: "50.9%", text: "HLCL averages only along edges between similar nodes (solid) and takes differences along edges between dissimilar ones (dashed). Every node keeps its identity and also learns how it differs from its neighbors." }
+  const nodes = g.n.map(([x, y]) => mk("circle", { class: "nd", cx: x, cy: y, r: 17, stroke: "#fff", "stroke-width": 2.5 }, svg));
+  const T = {
+    raw: "Five classes, and most edges connect nodes of different classes. Pick a filter to see what a GNN encoder does to this neighborhood.",
+    lp: r => `Averaging every node with all of its neighbors, as standard graph CL does: after ${r} round${r > 1 ? "s" : ""}, the classes have bled into each other and the nodes look ${r > 1 ? "nearly identical" : "alike"}.`,
+    hlcl: "HLCL averages only along edges between similar nodes (solid) and takes differences along edges between dissimilar ones (dashed). Classes stay apart however deep the encoder goes."
   };
-  const legend = document.getElementById("legend");
-  function set(m) {
+  let mode = "raw";
+  const slider = document.getElementById("rounds"), ctrl = document.getElementById("ctrl"), legend = document.getElementById("legend");
+  function render() {
+    const r = +slider.value; document.getElementById("rounds-o").textContent = r;
+    const X = mode === "raw" ? g.n.map((_, i) => onehot(i)) : run(r, mode === "lp" ? () => true : same);
+    nodes.forEach((c, i) => c.setAttribute("fill", color(X[i])));
     g.e.forEach(([a, b], k) => {
       const l = edges[k], s = same(a, b);
-      if (m === "hlcl") { l.setAttribute("stroke", s ? "#1a2233" : "#d1552a"); l.setAttribute("stroke-width", s ? 3 : 1.8); l.setAttribute("stroke-dasharray", s ? "0" : "6 5"); }
-      else { l.setAttribute("stroke", m === "lp" ? "#6b7280" : "#b4bac6"); l.setAttribute("stroke-width", 1.6); l.setAttribute("stroke-dasharray", "0"); }
+      if (mode === "hlcl") { l.setAttribute("stroke", s ? "#1a2233" : "#d1552a"); l.setAttribute("stroke-width", s ? 3 : 1.8); l.setAttribute("stroke-dasharray", s ? "0" : "6 5"); }
+      else { l.setAttribute("stroke", mode === "lp" ? "#6b7280" : "#c3c8d1"); l.setAttribute("stroke-width", 1.6); l.setAttribute("stroke-dasharray", "0"); }
     });
-    nodes.forEach((c, i) => c.setAttribute("fill", m === "lp" ? hex(lpAll[i]) : hex(CLS[g.n[i][2]])));
-    document.getElementById("r-lbl").textContent = M[m].lbl;
-    document.getElementById("r-num").textContent = M[m].num;
-    document.getElementById("r-text").textContent = M[m].text;
-    legend.innerHTML = m === "hlcl"
-      ? '<span><svg width="26" height="10"><line x1="1" y1="5" x2="25" y2="5" stroke="#1a2233" stroke-width="3"/></svg>similar neighbors: low-pass</span><span><svg width="26" height="10"><line x1="1" y1="5" x2="25" y2="5" stroke="#d1552a" stroke-width="2" stroke-dasharray="6 5"/></svg>dissimilar neighbors: high-pass</span>'
-      : m === "lp" ? '<span>Node color after one step of averaging with all neighbors</span>'
+    const v = Math.round(sep(X) * 100);
+    document.getElementById("m-sep").textContent = v + "%";
+    document.getElementById("m-bar").style.width = v + "%";
+    document.getElementById("m-acc-l").textContent = mode === "lp" ? "Chameleon accuracy, low-pass only" : mode === "hlcl" ? "Chameleon accuracy, HLCL" : "Chameleon accuracy";
+    document.getElementById("m-acc").textContent = mode === "lp" ? "35.4%" : mode === "hlcl" ? "50.9%" : "—";
+    document.getElementById("r-text").textContent = typeof T[mode] === "function" ? T[mode](r) : T[mode];
+    ctrl.hidden = mode === "raw";
+    legend.innerHTML = mode === "hlcl"
+      ? '<span><svg width="26" height="10"><line x1="1" y1="5" x2="25" y2="5" stroke="#1a2233" stroke-width="3"/></svg>similar: low-pass</span><span><svg width="26" height="10"><line x1="1" y1="5" x2="25" y2="5" stroke="#d1552a" stroke-width="2" stroke-dasharray="6 5"/></svg>dissimilar: high-pass</span>'
       : CLS.map((c, i) => `<span><svg width="12" height="12"><circle cx="6" cy="6" r="5.5" fill="${hex(c)}"/></svg>class ${i + 1}</span>`).join("");
-    document.querySelectorAll("#demo .seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.m === m));
+    document.querySelectorAll("#demo .seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.m === mode));
   }
-  document.querySelectorAll("#demo .seg button").forEach(b => b.addEventListener("click", () => set(b.dataset.m)));
-  set("raw");
+  document.querySelectorAll("#demo .seg button").forEach(b => b.addEventListener("click", () => { mode = b.dataset.m; render(); }));
+  slider.addEventListener("input", render);
+  render();
 })();
 
 /* ---------- gains over best other SSL (Table 1) ---------- */
@@ -496,6 +539,26 @@ drawStatic("nb-het", NB.nb_het);
   document.getElementById("abl").innerHTML = A.map(([d, h, l, p]) => `<p class="ds">${d}</p>` +
     [["HLCL", h, "#5a3d8f"], ["Low-pass only", l, "#1a2233"], ["High-pass only", p, "#d1552a"]].map(([n, v, c]) =>
       `<div class="row"><span>${n}</span><span class="track"><span class="fill" style="width:${v}%;background:${c}"></span></span><span style="text-align:right;font-variant-numeric:tabular-nums${n === "HLCL" ? ";font-weight:700;color:#5a3d8f" : ""}">${v}</span></div>`).join("")).join("");
+})();
+
+/* ---------- k1 vs homophily ratio (Table 5) ---------- */
+(function () {
+  const K = [0.1, 0.2, 0.5, 0.8, 0.9];
+  const S = [["Cora", 0.83, [53.7, 54.8, 72.1, 80.2, 84.1], "#1a2233"], ["Chameleon", 0.23, [45.0, 50.9, 42.0, 42.0, 42.0], "#5a3d8f"]];
+  const svg = document.getElementById("tune"), W = 560, H = 300, L = 44, R = 110, T = 16, B = 42;
+  const x = v => L + v * (W - L - R), y = v => H - B - (v - 30) / 60 * (H - B - T);
+  const F = { "font-family": "Hanken Grotesk, sans-serif", "font-size": 12.5, fill: "#7a8294" };
+  [30, 45, 60, 75, 90].forEach(v => { mk("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "#eef0f3" }, svg); const t = mk("text", { ...F, x: L - 8, y: y(v) + 4, "text-anchor": "end" }, svg); t.textContent = v + "%"; });
+  [0, 0.2, 0.4, 0.6, 0.8, 1].forEach(v => { const t = mk("text", { ...F, x: x(v), y: H - B + 18, "text-anchor": "middle" }, svg); t.textContent = v; });
+  const xl = mk("text", { ...F, x: (L + W - R) / 2, y: H - 4, "text-anchor": "middle" }, svg); xl.textContent = "k₁, fraction of edges treated as homophilic";
+  S.forEach(([n, beta, ys, c]) => {
+    mk("line", { x1: x(beta), x2: x(beta), y1: T, y2: H - B, stroke: c, "stroke-dasharray": "4 4", opacity: .5 }, svg);
+    const bt = mk("text", { ...F, x: x(beta) + 4, y: T + 10, fill: c }, svg); bt.textContent = "β = " + beta;
+    mk("path", { d: K.map((k, i) => (i ? "L" : "M") + x(k) + "," + y(ys[i])).join(""), fill: "none", stroke: c, "stroke-width": 2.4 }, svg);
+    const bi = ys.indexOf(Math.max(...ys));
+    K.forEach((k, i) => mk("circle", { cx: x(k), cy: y(ys[i]), r: i === bi ? 6 : 3.5, fill: i === bi ? c : "#fff", stroke: c, "stroke-width": 2 }, svg));
+    const lab = mk("text", { ...F, x: x(0.9) + 12, y: y(ys[4]) + 4, fill: c, "font-weight": 600, "font-size": 13.5 }, svg); lab.textContent = n;
+  });
 })();
 
 /* ---------- full table (Table 1) ---------- */
